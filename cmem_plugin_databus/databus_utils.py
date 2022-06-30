@@ -141,7 +141,6 @@ def load_files(sparql_endpoint: str, version_id: str) -> List[str]:
         + "?dataset dcat:distribution ?dist .\n"
         + "?dist dataid:file ?file. }"
     )
-    print(query)
     return fetch_query_result_by_key(sparql_endpoint, query, "file")
 
 

@@ -51,7 +51,11 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         if resp.status_code < 400:
             # write_to_dataset(self.target_dataset, io.BytesIO(resp.content))
             project_id, task_id = split_task_id(self.target_graph)
-            graph_uri = get_task(project=project_id, task=task_id)["data"]["parameters"]["graph"]["value"]
-            post_streamed_bytesio(str(graph_uri), io.BytesIO(resp.content), replace=True)
+            graph_uri = get_task(project=project_id, task=task_id)["data"][
+                "parameters"
+            ]["graph"]["value"]
+            post_streamed_bytesio(
+                str(graph_uri), io.BytesIO(resp.content), replace=True
+            )
         else:
             raise FileNotFoundError
