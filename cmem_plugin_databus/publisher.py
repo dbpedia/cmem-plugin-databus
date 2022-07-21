@@ -4,8 +4,7 @@ from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.utils import split_task_id, setup_cmempy_super_user_access
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
-from .databus_utils import create_distribution
-from databusclient import createDataset, deploy
+from databusclient import createDataset, deploy, create_distribution
 from webdav3.client import Client as WebDAVClient
 from cmem.cmempy.dp.proxy.graph import get_streamed
 from datetime import datetime
@@ -153,9 +152,6 @@ class DatabusDeployPlugin(WorkflowPlugin):
             self.version = datetime.now().strftime("%Y.%m.%d")
 
         setup_cmempy_super_user_access()
-
-        self.log.info("Started the Plugin!")
-
         # deploy metadata to databus
         graph_uri, title, abstract, description = self.__fetch_graph_metadata()
 
@@ -189,7 +185,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             license=self.license_uri,
             distributions=[distrib],
         )
-        self.log.info(f"Graph jsonld: {json.dumps(dataset)}")
+        self.log.info(f"Submitted Dataset to Databus: {json.dumps(dataset)}")
         deploy(dataset, self.api_key)
 
 
