@@ -155,7 +155,7 @@ toml = ["tomli"]
 
 [[package]]
 name = "databusclient"
-version = "0.6"
+version = "0.7"
 description = "A simple client for submitting data to the databus"
 category = "main"
 optional = false
@@ -770,7 +770,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "aea656eaba532c4fa908688658e9f775864b3fb748b92abcb635a7632b0026ec"
+content-hash = "c78c8d12e83ffd17a2ebf4168ef940b852253e083a2efc253f1914ff40b06df2"
 
 [metadata.files]
 astroid = []

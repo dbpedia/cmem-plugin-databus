@@ -18,7 +18,7 @@ include = ["CHANGELOG.md"]
 [tool.poetry.dependencies]
 python = "^3.9"
 cmem-plugin-base = ">=1.2.0"
-databusclient = "0.6"
+databusclient = "0.7"
 SPARQLWrapper = "^2.0.0"
 webdavclient3 = "^3.14.6"
 
