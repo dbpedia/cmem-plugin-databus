@@ -1,10 +1,10 @@
-import io
-
+import hashlib
+import json
 from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
-from cmem_plugin_base.dataintegration.utils import split_task_id
+from cmem_plugin_base.dataintegration.utils import split_task_id, setup_cmempy_super_user_access
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
-from databus_utils import create_distribution
+from .databus_utils import create_distribution
 from databusclient import createDataset, deploy
 from webdav3.client import Client as WebDAVClient
 from cmem.cmempy.dp.proxy.graph import get_streamed
@@ -118,7 +118,8 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
     def __webdav_upload_bytes(self, target_path: str, data: bytes) -> None:
         urn = Urn(target_path)
-        self.webdav_client.execute_request(action='upload', path=urn.quote(), data=data)
+        resp = self.webdav_client.execute_request(action='upload', path=urn.quote(), data=data)
+        self.log.info(f"Status file upload: {str(resp.status_code)}")
 
     def __get_identifier_from_artifact(self) -> tuple[str, str, str, str]:
         databus_base, user, group, artifact = self.dataset_artifact_uri.rstrip("/ ").rsplit("/", 3)
@@ -130,29 +131,37 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
         self.__handle_webdav_dirs(user, group, artifact, self.version)
 
-        self.__webdav_upload_bytestream(target_path, graph_data)
+        self.__webdav_upload_bytes(target_path, graph_data)
 
     def __fetch_graph_metadata(self) -> Tuple[str, str, str, str]:
 
         project_id, task_id = split_task_id(self.source_graph)
         metadata_dict = get_task(project=project_id, task=task_id)
 
+        self.log.error(str(metadata_dict))
+
         uri = metadata_dict["data"]["parameters"]["graph"]["value"]
-        title = metadata_dict["metadata"]["label"]["value"]
-        description = metadata_dict["metadata"]["description"]["value"]
+        title = metadata_dict["metadata"]["label"]
+        description = metadata_dict["metadata"]["description"]
         abstract = _generate_abstract_from_description(description)
 
         return str(uri), str(title), str(abstract), str(description)
 
-    def execute(self) -> None:
+    def execute(self, inputs=(), **kwargs) -> None:
         # handle version during execution, NOT during initialisation
         if self.version is None or self.version == "":
             self.version = datetime.now().strftime("%Y.%m.%d")
+
+        setup_cmempy_super_user_access()
+
+        self.log.info("Started the Plugin!")
 
         # deploy metadata to databus
         graph_uri, title, abstract, description = self.__fetch_graph_metadata()
 
         databus_base, user, group, artifact = self.__get_identifier_from_artifact()
+
+        self.log.info(f"Info about graph: {title}")
 
         # generating some required strings
         cv_string = "_".join([f"{k}={v}" for k, v in self.cvs.items()])
@@ -162,12 +171,16 @@ class DatabusDeployPlugin(WorkflowPlugin):
         # fetch data
         graph_response = get_streamed(graph_uri, accept="text/turtle")
 
+        # sha256sum = hashlib.sha256(bytes(graph_response.content)).hexdigest()
+        #
+        # content_length = len(graph_response.content)
+
         self.__handle_webdav(file_target_path, graph_response.content)
 
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
         file_url = f"{self.webdav_hostname}/{file_target_path}"
         distrib = create_distribution(url=file_url, cvs=self.cvs, file_format=self.fileformat)
-
+        self.log.info(f"Distrib String: {distrib}")
         dataset = createDataset(
             versionId=version_id,
             title=title,
@@ -176,6 +189,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             license=self.license_uri,
             distributions=[distrib],
         )
+        self.log.info(f"Graph jsonld: {json.dumps(dataset)}")
         deploy(dataset, self.api_key)
 
 
