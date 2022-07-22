@@ -1,5 +1,6 @@
 import hashlib
 import json
+from collections import OrderedDict
 from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.utils import split_task_id, setup_cmempy_super_user_access
@@ -36,7 +37,7 @@ The knowledge graph will be deployed as a turtle file to the Databus.
         PluginParameter(
             name="dataset_artifact_uri",
             label="Dataset Artifact URI",
-            description="The Databus Dataset Artifact for this specific dataset. It conforms to following conventions:"
+            description="The Databus Dataset Artifact for this specific dataset. It conforms to following conventions: "
                         "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
         ),
         PluginParameter(
@@ -44,12 +45,24 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             label="Dataset Version",
             description="The version of the Dataset. If omitted, it is automatically set to YYYY.MM.DD. NOTE: This "
                         "can overwrite already published Datasets on the Databus!",
-            default_value=None
         ),
         PluginParameter(
             name="license_uri",
             label="Dataset License URI",
             description="Define the URI of the license under which the Dataset should be published",
+            # In the new version htis should be a dropdown menu
+            # param_type=ChoiceParameterType(
+            #     OrderedDict({'Academic Free License 3.0': 'http://dalicc.net/licenselibrary/AcademicFreeLicense30',
+            #                  'Adaptive Public License 1.0': 'http://dalicc.net/licenselibrary/AdaptivePublicLicense10',
+            #                  'Apple Public Source License 2.0': 'http://dalicc.net/licenselibrary/ApplePublicSourceLicense20',
+            #                  'Artistic License 2.0': 'http://dalicc.net/licenselibrary/ArtisticLicense20',
+            #                  'Attribution Assurance License': 'http://dalicc.net/licenselibrary/AttributionAssuranceLicense',
+            #                  'Boost Software License 1.0': 'http://dalicc.net/licenselibrary/BoostSoftwareLicense10',
+            #                  'Cea Cnrs Inria Logiciel Libre License, version 2.1': 'http://dalicc.net/licenselibrary/CeaCnrsInriaLogicielLibreLicenseVersion21',
+            #                  'Common Development and Distribution License 1.0': 'http://dalicc.net/licenselibrary/CommonDevelopmentAndDistributionLicense10',
+            #                  'Common Public Attribution License Version 1.0': 'http://dalicc.net/licenselibrary/CommonPublicAttributionLicenseVersion10',
+            #                  'Computer Associates Trusted Open Source License 1.1': 'http://dalicc.net/licenselibrary/ComputerAssociatesTrustedOpenSourceLicense11'}
+            #                 ))
         ),
         PluginParameter(
             name="api_key",
@@ -80,7 +93,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             license_uri: str,
             api_key: str,
             source_graph: str,
-            cvs: str = "key1=val1,key2=val2",
+            cvs: str,
     ) -> None:
         self.webdav_hostname = webdav_hostname
         webdav_login, webdav_pw = webdav_credentials.split(":")
@@ -90,10 +103,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             'webdav_password': webdav_pw
         })
         self.dataset_artifact_uri = dataset_artifact_uri
-        if version is not None and not version == "":
-            self.version = version
-        else:
-            self.version = datetime.now().strftime("%Y.%m.%d")
+        self.version = version
         self.license_uri = license_uri
         self.api_key = api_key
         self.cvs = {}
@@ -148,7 +158,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
     def execute(self, inputs=(), **kwargs) -> None:
         # handle version during execution, NOT during initialisation
-        if self.version is None or self.version == "":
+        if self.version is None or self.version.strip(" ") == "":
             self.version = datetime.now().strftime("%Y.%m.%d")
 
         setup_cmempy_super_user_access()
