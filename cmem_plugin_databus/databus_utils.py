@@ -13,7 +13,7 @@ from cmem_plugin_base.dataintegration.types import StringParameterType, Autocomp
 class WebDAVException(Exception):
 
     def __init__(self, resp: requests.Response):
-        super().__init__(f"Exception during WebDAV Request {resp.request.method} to {resp.request.url}: {resp.text}")
+        super().__init__(f"Exception during WebDAV Request {resp.request.method} to {resp.request.url}: Status {resp.status_code}\nResponse: {resp.text}")
 
 
 @dataclass
@@ -212,18 +212,18 @@ class WebDAVHandler:
         except requests.RequestException:
             return False
 
-        if resp.status_code == 200:
+        if resp.status_code == 405:
             return True
         else:
             return False
 
-    def create_dir(self, path: str) -> requests.Response:
+    def create_dir(self, path: str, session: requests.Session = None) -> requests.Response:
+
+        if session is None:
+            session = requests.Session()
+
         req = requests.Request(method="MKCOL", url=f"{self.dav_base}{path}", headers={"X-API-KEY": f"{self.api_key}"})
-
-        session = requests.Session()
-
         resp = session.send(req.prepare())
-
         return resp
 
     def create_dirs(self, path: str) -> List[requests.Response]:

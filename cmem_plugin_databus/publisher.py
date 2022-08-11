@@ -11,7 +11,6 @@ from databusclient import createDataset, deploy, create_distribution
 from cmem.cmempy.dp.proxy.graph import get_streamed
 from datetime import datetime
 from cmem.cmempy.workspace.tasks import get_task
-from webdav3.urn import Urn
 from typing import Tuple
 from .databus_utils import WebDAVHandler
 
@@ -111,16 +110,16 @@ class DatabusDeployPlugin(WorkflowPlugin):
         self.fileformat = "ttl"
         self.source_graph = source_graph
 
-    def __handle_webdav_dirs(self, user: str, group: str, artifact: str, version: str):
-        required_dirs = [
-            f"{group}",
-            f"{group}/{artifact}",
-            f"{group}/{artifact}/{version}"
-        ]
-
-        for req_dir in required_dirs:
-            if not self.webdav_client.check(req_dir):
-                self.webdav_client.mkdir(req_dir)
+    # def __handle_webdav_dirs(self, user: str, group: str, artifact: str, version: str):
+    #     required_dirs = [
+    #         f"{group}",
+    #         f"{group}/{artifact}",
+    #         f"{group}/{artifact}/{version}"
+    #     ]
+    #
+    #     for req_dir in required_dirs:
+    #         if not self.webdav_client.check(req_dir):
+    #             self.webdav_client.mkdir(req_dir)
 
     # def __webdav_upload_bytes(self, target_path: str, data: bytes) -> None:
     #     urn = Urn(target_path)
@@ -183,7 +182,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         # self.__handle_webdav(file_target_path, graph_response.content)
 
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
-        file_url = f"{self.webdav_hostname}/{file_target_path}"
+        file_url = f"{self.webdav_handler.dav_base}{file_target_path}"
         distrib = create_distribution(url=file_url, cvs=self.cvs, file_format=self.fileformat)
         self.log.info(f"Distrib String: {distrib}")
         dataset = createDataset(
