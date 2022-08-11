@@ -48,6 +48,7 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             label="Dataset Version",
             description="The version of the Dataset. If omitted, it is automatically set to YYYY.MM.DD. NOTE: This "
                         "can overwrite already published Datasets on the Databus!",
+            default_value=""
         ),
         PluginParameter(
             name="license_uri",
