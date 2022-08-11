@@ -1,17 +1,21 @@
 import hashlib
 import json
 from collections import OrderedDict
+from cmem_plugin_base.dataintegration.parameter.choice import ChoiceParameterType
+from cmem_plugin_base.dataintegration.context import ExecutionContext
 from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.utils import split_task_id, setup_cmempy_super_user_access
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
 from databusclient import createDataset, deploy, create_distribution
-from webdav3.client import Client as WebDAVClient
 from cmem.cmempy.dp.proxy.graph import get_streamed
 from datetime import datetime
 from cmem.cmempy.workspace.tasks import get_task
 from webdav3.urn import Urn
 from typing import Tuple
+from .databus_utils import WebDAVHandler
+
+
 
 
 @Plugin(
@@ -24,15 +28,15 @@ The knowledge graph will be deployed as a turtle file to the Databus.
 """,
     parameters=[
         PluginParameter(
-            name="webdav_hostname",
-            label="WebDAV Hostname URI",
-            description="The URI to deploy the data to via WebDAV. NOTE: The credentials for WebDAV must be correct "
-                        "for this URI!",
-        ),
-        PluginParameter(
-            name="webdav_credentials",
-            label="WebDAV Target Credentials",
-            description="The credentials for the WebDAV. Submitted in the form of login:password",
+            name="target_databus",
+            label="Target Databus",
+            description="The Databus to be deployed to",
+            # param_type=ChoiceParameterType(
+            #     OrderedDict({
+            #         "Dev Databus": "https://dev.databus.dbpedia.org/",
+            #         "Coypu Databus": "https://databus.coypu.org/"
+            #     })
+            # )
         ),
         PluginParameter(
             name="dataset_artifact_uri",
@@ -50,7 +54,7 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             name="license_uri",
             label="Dataset License URI",
             description="Define the URI of the license under which the Dataset should be published",
-            # In the new version htis should be a dropdown menu
+            # In the new version this should be a dropdown menu
             # param_type=ChoiceParameterType(
             #     OrderedDict({'Academic Free License 3.0': 'http://dalicc.net/licenselibrary/AcademicFreeLicense30',
             #                  'Adaptive Public License 1.0': 'http://dalicc.net/licenselibrary/AdaptivePublicLicense10',
@@ -86,8 +90,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
     def __init__(
             self,
-            webdav_hostname: str,
-            webdav_credentials: str,
+            target_databus: str,
             dataset_artifact_uri: str,
             version: str,
             license_uri: str,
@@ -95,14 +98,9 @@ class DatabusDeployPlugin(WorkflowPlugin):
             source_graph: str,
             cvs: str,
     ) -> None:
-        self.webdav_hostname = webdav_hostname
-        webdav_login, webdav_pw = webdav_credentials.split(":")
-        self.webdav_client = WebDAVClient({
-            'webdav_hostname': webdav_hostname,
-            'webdav_login': webdav_login,
-            'webdav_password': webdav_pw
-        })
         self.dataset_artifact_uri = dataset_artifact_uri
+        _, user, _, _ = self.__get_identifier_from_artifact()
+        self.webdav_handler = WebDAVHandler(databus_base=target_databus, user=user, api_key=api_key)
         self.version = version
         self.license_uri = license_uri
         self.api_key = api_key
@@ -115,32 +113,31 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
     def __handle_webdav_dirs(self, user: str, group: str, artifact: str, version: str):
         required_dirs = [
-            f"{user}",
-            f"{user}/{group}",
-            f"{user}/{group}/{artifact}",
-            f"{user}/{group}/{artifact}/{version}"
+            f"{group}",
+            f"{group}/{artifact}",
+            f"{group}/{artifact}/{version}"
         ]
 
         for req_dir in required_dirs:
             if not self.webdav_client.check(req_dir):
                 self.webdav_client.mkdir(req_dir)
 
-    def __webdav_upload_bytes(self, target_path: str, data: bytes) -> None:
-        urn = Urn(target_path)
-        resp = self.webdav_client.execute_request(action='upload', path=urn.quote(), data=data)
-        self.log.info(f"Status file upload: {str(resp.status_code)}")
+    # def __webdav_upload_bytes(self, target_path: str, data: bytes) -> None:
+    #     urn = Urn(target_path)
+    #     resp = self.webdav_client.execute_request(action='upload', path=urn.quote(), data=data)
+    #     self.log.info(f"Status file upload: {str(resp.status_code)}")
 
     def __get_identifier_from_artifact(self) -> tuple[str, str, str, str]:
         databus_base, user, group, artifact = self.dataset_artifact_uri.rstrip("/ ").rsplit("/", 3)
         return str(databus_base), str(user), str(group), str(artifact)
 
-    def __handle_webdav(self, target_path: str, graph_data: bytes) -> None:
-
-        _, user, group, artifact = self.__get_identifier_from_artifact()
-
-        self.__handle_webdav_dirs(user, group, artifact, self.version)
-
-        self.__webdav_upload_bytes(target_path, graph_data)
+    # def __handle_webdav(self, target_path: str, graph_data: bytes) -> None:
+    #
+    #     _, user, group, artifact = self.__get_identifier_from_artifact()
+    #
+    #     self.__handle_webdav_dirs(user, group, artifact, self.version)
+    #
+    #     self.__webdav_upload_bytes(target_path, graph_data)
 
     def __fetch_graph_metadata(self) -> Tuple[str, str, str, str]:
 
@@ -156,7 +153,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
         return str(uri), str(title), str(abstract), str(description)
 
-    def execute(self, inputs=(), **kwargs) -> None:
+    def execute(self, inputs=(), context: ExecutionContext = ExecutionContext()) -> None:
         # handle version during execution, NOT during initialisation
         if self.version is None or self.version.strip(" ") == "":
             self.version = datetime.now().strftime("%Y.%m.%d")
@@ -167,12 +164,12 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
         databus_base, user, group, artifact = self.__get_identifier_from_artifact()
 
-        self.log.info(f"Info about graph: {title}")
+        self.log.info(f"Info about graph: {title} ({graph_uri})")
 
         # generating some required strings
         cv_string = "_".join([f"{k}={v}" for k, v in self.cvs.items()])
 
-        file_target_path = f"{user}/{group}/{artifact}/{self.version}/{artifact}_{cv_string}.{self.fileformat}"
+        file_target_path = f"{group}/{artifact}/{self.version}/{artifact}_{cv_string}.{self.fileformat}"
 
         # fetch data
         graph_response = get_streamed(graph_uri, accept="text/turtle")
@@ -181,7 +178,9 @@ class DatabusDeployPlugin(WorkflowPlugin):
         #
         # content_length = len(graph_response.content)
 
-        self.__handle_webdav(file_target_path, graph_response.content)
+        self.webdav_handler.upload_file(file_target_path, graph_response.content, create_parent_dirs=True)
+
+        # self.__handle_webdav(file_target_path, graph_response.content)
 
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
         file_url = f"{self.webdav_hostname}/{file_target_path}"

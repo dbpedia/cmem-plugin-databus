@@ -10,6 +10,12 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from cmem_plugin_base.dataintegration.types import StringParameterType, Autocompletion
 
 
+class WebDAVException(Exception):
+
+    def __init__(self, resp: requests.Response):
+        super().__init__(f"Exception during WebDAV Request {resp.request.method} to {resp.request.url}: {resp.text}")
+
+
 @dataclass
 class DatabusSearchResult:
     typeName: str
@@ -28,7 +34,7 @@ def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResul
 
 
 def fetch_api_search_result(
-    databus_base: str, query_str: str
+        databus_base: str, query_str: str
 ) -> List[DatabusSearchResult]:
     encoded_query_str = quote(query_str)
 
@@ -45,7 +51,7 @@ def fetch_api_search_result(
 
 
 def fetch_query_result_by_key(
-    endpoint: str, query: str, key: str
+        endpoint: str, query: str, key: str
 ) -> Optional[List[str]]:
     """Sends a query to the given endpint and collects all results of a key in a list"""
     sparql_service = SPARQLWrapper(endpoint)
@@ -86,14 +92,14 @@ SELECT DISTINCT ?acc WHERE {
 def load_groups(sparql_endpoint: str, publisher_uri: str) -> List[str]:
     """Load groups for a given publisher ID. CARE: #this is expected at the end!"""
     query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "SELECT DISTINCT ?group WHERE {\n"
-        + "?dataset a dataid:Dataset .\n"
-        + f"?dataset dct:publisher <{publisher_uri}> .\n"
-        "?dataset dataid:group ?group .}"
+            "PREFIX dct: <http://purl.org/dc/terms/>\n"
+            + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+            + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+            + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
+            + "SELECT DISTINCT ?group WHERE {\n"
+            + "?dataset a dataid:Dataset .\n"
+            + f"?dataset dct:publisher <{publisher_uri}> .\n"
+              "?dataset dataid:group ?group .}"
     )
     return fetch_query_result_by_key(sparql_endpoint, query, "group")
 
@@ -101,13 +107,13 @@ def load_groups(sparql_endpoint: str, publisher_uri: str) -> List[str]:
 def load_artifacts(sparql_endpoint: str, group_id: str) -> List[str]:
     """Load artifacts for a given group ID"""
     query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "SELECT DISTINCT ?artifact WHERE {\n"
-        + f"?dataset dataid:group <{group_id}> .\n"
-        + "?dataset dataid:artifact ?artifact .}"
+            "PREFIX dct: <http://purl.org/dc/terms/>\n"
+            + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+            + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+            + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
+            + "SELECT DISTINCT ?artifact WHERE {\n"
+            + f"?dataset dataid:group <{group_id}> .\n"
+            + "?dataset dataid:artifact ?artifact .}"
     )
 
     return fetch_query_result_by_key(sparql_endpoint, query, "artifact")
@@ -116,13 +122,13 @@ def load_artifacts(sparql_endpoint: str, group_id: str) -> List[str]:
 def load_versions(sparql_endpoint: str, artifact_id: str) -> List[str]:
     """Load versions for a given artifact ID"""
     query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "SELECT DISTINCT ?version WHERE {\n"
-        + f"?dataset dataid:artifact <{artifact_id}> .\n"
-        + "?dataset dataid:version ?version .}"
+            "PREFIX dct: <http://purl.org/dc/terms/>\n"
+            + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+            + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+            + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
+            + "SELECT DISTINCT ?version WHERE {\n"
+            + f"?dataset dataid:artifact <{artifact_id}> .\n"
+            + "?dataset dataid:version ?version .}"
     )
 
     return fetch_query_result_by_key(sparql_endpoint, query, "version")
@@ -131,15 +137,15 @@ def load_versions(sparql_endpoint: str, artifact_id: str) -> List[str]:
 def load_files(sparql_endpoint: str, version_id: str) -> List[str]:
     """Load files for a given version ID"""
     query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "PREFIX dcat: <http://www.w3.org/ns/dcat#>\n"
-        + "SELECT DISTINCT ?file WHERE {\n"
-        + f"?dataset dataid:version <{version_id}> .\n"
-        + "?dataset dcat:distribution ?dist .\n"
-        + "?dist dataid:file ?file. }"
+            "PREFIX dct: <http://purl.org/dc/terms/>\n"
+            + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+            + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+            + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
+            + "PREFIX dcat: <http://www.w3.org/ns/dcat#>\n"
+            + "SELECT DISTINCT ?file WHERE {\n"
+            + f"?dataset dataid:version <{version_id}> .\n"
+            + "?dataset dcat:distribution ?dist .\n"
+            + "?dist dataid:file ?file. }"
     )
     return fetch_query_result_by_key(sparql_endpoint, query, "file")
 
@@ -148,7 +154,7 @@ class DatabusFileAutocomplete(StringParameterType):
     """Class for autocompleting identifiers from an arbitrary databus"""
 
     def autocomplete(
-        self, query_terms: list[str], project_id: Optional[str] = None
+            self, query_terms: list[str], project_id: Optional[str] = None
     ) -> list[Autocompletion]:
         return self.__transform_uris_to_autocompletion(
             self.fetch_results_by_uri(query_terms[0])
@@ -163,7 +169,7 @@ class DatabusFileAutocomplete(StringParameterType):
 
         endpoint = "https://" + parts[0] + "/sparql"
 
-        normalized_querystr = query_str[0 : query_str.rfind("/")]
+        normalized_querystr = query_str[0: query_str.rfind("/")]
 
         try:
             if len(parts) == 1:
@@ -192,3 +198,58 @@ class DatabusFileAutocomplete(StringParameterType):
         """transforms a list of URIs into a list of autocompletion"""
         result = [Autocompletion(uri, uri) for uri in uri_list]
         return result
+
+
+class WebDAVHandler:
+
+    def __init__(self, databus_base: str, user: str, api_key: str):
+        self.dav_base = databus_base + f"dav/{user}/"
+        self.api_key = api_key
+
+    def check_existence(self, path: str) -> bool:
+        try:
+            resp = requests.head(url=f"{self.dav_base}{path}")
+        except requests.RequestException:
+            return False
+
+        if resp.status_code == 200:
+            return True
+        else:
+            return False
+
+    def create_dir(self, path: str) -> requests.Response:
+        req = requests.Request(method="MKCOL", url=f"{self.dav_base}{path}", headers={"X-API-KEY": f"{self.api_key}"})
+
+        session = requests.Session()
+
+        resp = session.send(req.prepare())
+
+        return resp
+
+    def create_dirs(self, path: str) -> List[requests.Response]:
+
+        dirs = path.split("/")
+        responses = []
+        current_path = ""
+        for directory in dirs:
+            current_path = current_path + directory + "/"
+            if not self.check_existence(current_path):
+                resp = self.create_dir(current_path)
+                responses.append(resp)
+                if resp.status_code >= 400:
+                    break
+
+        return responses
+
+    def upload_file(self, path: str, data: bytes, create_parent_dirs: bool = False) -> requests.Response:
+
+        if create_parent_dirs:
+            dirpath, filename = path.rsplit("/", 1)
+            responses = self.create_dirs(dirpath)
+
+            if responses[-1].status_code >= 400:
+                raise WebDAVException(responses[-1])
+
+        resp = requests.put(url=f"{self.dav_base}{path}", data=data)
+
+        return resp
