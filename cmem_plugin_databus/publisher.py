@@ -179,6 +179,8 @@ class DatabusDeployPlugin(WorkflowPlugin):
             raise WebDAVException(upload_resp)
         # self.__handle_webdav(file_target_path, graph_response.content)
 
+        context.report.update(ExecutionReport(operation_desc=f"WebDAV Upload Successful ✓"))
+
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
         file_url = f"{self.webdav_handler.dav_base}{file_target_path}"
         distrib = create_distribution(
@@ -195,7 +197,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         )
         self.log.info(f"Submitted Dataset to Databus: {json.dumps(dataset)}")
         deploy(dataset, self.api_key)
-        context.report.update(ExecutionReport(operation_desc=f"Deployment to the Databus Successfull ✓"))
+        context.report.update(ExecutionReport(operation_desc=f"Deployment Successful ✓"))
 
 
 def _generate_abstract_from_description(description: str) -> str:
