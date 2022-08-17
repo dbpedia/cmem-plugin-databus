@@ -5,18 +5,14 @@ from cmem_plugin_base.dataintegration.parameter.choice import ChoiceParameterTyp
 from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
 from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
-from cmem_plugin_base.dataintegration.utils import (
-    split_task_id,
-    setup_cmempy_super_user_access,
-)
+from cmem_plugin_base.dataintegration.utils import setup_cmempy_super_user_access
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
 from databusclient import createDataset, deploy, create_distribution
 from cmem.cmempy.dp.proxy.graph import get_streamed
 from datetime import datetime
 from cmem.cmempy.workspace.tasks import get_task
 from typing import Tuple, List
-from .databus_utils import WebDAVHandler, WebDAVException
-from .cmem_utils import get_clock
+from .utils import WebDAVHandler, WebDAVException, get_clock
 
 
 @Plugin(
@@ -75,6 +71,13 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             description="Graph name to publish to the Databus",
             param_type=DatasetParameterType(dataset_type="eccencaDataPlatform"),
         ),
+        PluginParameter(
+            name="chunk_size",
+            label="Chunk Size",
+            description="Chunksize during up/downloading the graph",
+            default_value=4096,
+            advanced=True,
+        )
     ],
 )
 class DatabusDeployPlugin(WorkflowPlugin):
@@ -86,6 +89,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             api_key: str,
             source_dataset: str,
             cvs: str,
+            chunk_size: int,
     ) -> None:
         self.dataset_artifact_uri = dataset_artifact_uri
         databus_base, user, _, _ = self.__get_identifier_from_artifact()
@@ -101,6 +105,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             self.cvs[k] = v
         self.fileformat = "ttl"
         self.source_dataset = source_dataset
+        self.chunk_size = chunk_size
 
     def __get_identifier_from_artifact(self) -> tuple[str, str, str, str]:
         databus_base, user, group, artifact = self.dataset_artifact_uri.rstrip(
@@ -153,17 +158,13 @@ class DatabusDeployPlugin(WorkflowPlugin):
         file_target_path = f"{group}/{artifact}/{self.version}/{artifact}_{cv_string}.{self.fileformat}"
 
         # fetch data
-        graph_response = get_streamed(graph_uri, accept="text/turtle")
         data: bytearray = bytearray()
-        cnt = 0
-        chunk_size = 4096
-        with graph_response as resp:
-            for b in resp.iter_content(chunk_size=chunk_size):
-                cnt += chunk_size
+        with get_streamed(graph_uri, accept="text/turtle") as resp:
+            for i, b in enumerate(resp.iter_content(chunk_size=self.chunk_size)):
                 data += bytearray(b)
-                desc = f"Downloading File {get_clock(cnt)}"
+                desc = f"Downloading File {get_clock(i)}"
                 context.report.update(
-                    ExecutionReport(entity_count=cnt, operation="wait", operation_desc=desc)
+                    ExecutionReport(entity_count=i * self.chunk_size, operation="wait", operation_desc=desc)
                 )
 
         sha256sum = hashlib.sha256(bytes(data)).hexdigest()
@@ -173,7 +174,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
         context.report.update(ExecutionReport(operation_desc=f"Uploading file to {file_target_path}"))
         upload_resp = self.webdav_handler.upload_file_with_context(
-            file_target_path, data=bytes(data), context=context, create_parent_dirs=True, chunksize=chunk_size
+            file_target_path, data=bytes(data), context=context, create_parent_dirs=True, chunk_size=self.chunk_size
         )
         if upload_resp.status_code >= 400:
             raise WebDAVException(upload_resp)
