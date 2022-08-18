@@ -297,7 +297,6 @@ class WebDAVHandler:
 
         return responses
 
-    @staticmethod
     def upload_file_with_context(self, path: str, data: bytes, context: ExecutionContext, chunk_size: int,
                                  create_parent_dirs: bool = False) -> requests.Response:
 

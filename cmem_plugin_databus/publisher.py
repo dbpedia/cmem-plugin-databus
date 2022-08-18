@@ -174,7 +174,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
         context.report.update(ExecutionReport(operation_desc=f"Uploading file to {file_target_path}"))
         upload_resp = self.webdav_handler.upload_file_with_context(
-            file_target_path, data=bytes(data), context=context, create_parent_dirs=True, chunk_size=self.chunk_size
+            path=file_target_path, data=bytes(data), context=context, create_parent_dirs=True, chunk_size=self.chunk_size
         )
         if upload_resp.status_code >= 400:
             raise WebDAVException(upload_resp)
