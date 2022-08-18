@@ -185,7 +185,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
         file_url = f"{self.webdav_handler.dav_base}{file_target_path}"
         distrib = create_distribution(
-            url=file_url, cvs=self.cvs, file_format=self.fileformat
+            url=file_url, cvs=self.cvs, file_format=self.fileformat, sha256_length_tuple=(sha256sum, content_length)
         )
         self.log.info(f"Distrib String: {distrib}")
         dataset = createDataset(
