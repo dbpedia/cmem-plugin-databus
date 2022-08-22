@@ -1,10 +1,6 @@
 """Plugin tests."""
 import pytest
 
-from cmem_plugin_databus.loader import SimpleDatabusLoadingPlugin
-from cmem_plugin_databus.databus_utils import *
-from cmem_plugin_databus.publisher import DatabusDeployPlugin
-
 # def test_plugin():
 #     plugin = SimpleDatabusLoadingPlugin(
 #         "https://d8lr.tools.dbpedia.org/jlareck/migration/stw-thesaurus-for-economics_2/1.0.10-alpha/stw-thesaurus-for-economics_2.ttl"

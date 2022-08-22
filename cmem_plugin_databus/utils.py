@@ -103,20 +103,21 @@ def fetch_api_search_result(
 
 def fetch_query_result_by_key(
         endpoint: str, query: str, key: str
-) -> Optional[List[str]]:
+) -> List[str]:
     """Sends a query to the given endpint and collects all results of a key in a list"""
     sparql_service = SPARQLWrapper(endpoint)
     sparql_service.setQuery(query)
     sparql_service.setReturnFormat(JSON)
 
-    try:
-        query_results = sparql_service.query().convert()
-    except URLError:
-        return None
+    query_results = sparql_service.query().convert()
+
+    # just to make mypy stop complaining
+    assert isinstance(query_results, dict)
+
     try:
         results = list(
             map(
-                lambda binding: binding[key]["value"],
+                lambda binding: str(binding[key]["value"]),
                 query_results["results"]["bindings"],
             )
         )
@@ -338,7 +339,7 @@ class WebDAVHandler:
         return resp
 
 
-def byte_iterator_context_update(data: bytes, context: ExecutionContext, chunksize: int, desc: str) -> Generator[bytes]:
+def byte_iterator_context_update(data: bytes, context: ExecutionContext, chunksize: int, desc: str) -> Iterator[bytes]:
     for i, chunk in enumerate([data[i:i + chunksize] for i in range(0, len(data), chunksize)]):
         desc = f"{desc} {get_clock(i)}"
         context.report.update(

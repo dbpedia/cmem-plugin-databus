@@ -29,6 +29,7 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             label="Dataset Artifact URI",
             description="The Databus Dataset Artifact for this specific dataset. It conforms to following conventions: "
                         "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
+            default_value=""
         ),
         PluginParameter(
             name="version",
