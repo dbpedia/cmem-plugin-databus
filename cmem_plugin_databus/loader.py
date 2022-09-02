@@ -37,7 +37,7 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
             name="chunk_size",
             label="Chunk Size",
             description="Chunksize during up/downloading the graph",
-            default_value=4096,
+            default_value=1048576,
             advanced=True,
         )
     ],
@@ -73,7 +73,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
                 data += bytearray(b)
                 desc = f"Downloading File {get_clock(i)}"
                 context.report.update(
-                    ExecutionReport(entity_count=i * self.chunk_size, operation="load", operation_desc=desc)
+                    ExecutionReport(entity_count=len(data)//1000000, operation="load", operation_desc=desc)
                 )
         graph_uri = self.__get_graph_uri(context)
         post_resp = post_streamed_bytes(

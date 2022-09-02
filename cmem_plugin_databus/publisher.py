@@ -76,7 +76,7 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             name="chunk_size",
             label="Chunk Size",
             description="Chunksize during up/downloading the graph",
-            default_value=4096,
+            default_value=1048576,
             advanced=True,
         )
     ],
@@ -147,7 +147,15 @@ class DatabusDeployPlugin(WorkflowPlugin):
         context.report.update(ExecutionReport(operation_desc=f"Started deploy of version {self.version}"))
         setup_cmempy_super_user_access()
         # deploy metadata to databus
-        graph_uri, title, abstract, description = self.__fetch_graph_metadata(context)
+        try:
+            graph_uri, title, abstract, description = self.__fetch_graph_metadata(context)
+        except KeyError as e:
+            context.report.update(
+                ExecutionReport(
+                    error=f"There was an error fetching the necessary from {self.source_dataset}:\n" + str(e)
+                )
+            )
+            return
 
         databus_base, user, group, artifact = self.__get_identifier_from_artifact()
 
@@ -165,7 +173,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
                 data += bytearray(b)
                 desc = f"Downloading File {get_clock(i)}"
                 context.report.update(
-                    ExecutionReport(entity_count=i * self.chunk_size, operation="wait", operation_desc=desc)
+                    ExecutionReport(entity_count=len(data)//1000000, operation="wait", operation_desc=desc)
                 )
 
         sha256sum = hashlib.sha256(bytes(data)).hexdigest()
@@ -179,7 +187,6 @@ class DatabusDeployPlugin(WorkflowPlugin):
         )
         if upload_resp.status_code >= 400:
             raise WebDAVException(upload_resp)
-        # self.__handle_webdav(file_target_path, graph_response.content)
 
         context.report.update(ExecutionReport(operation_desc=f"WebDAV Upload Successful ✓"))
 

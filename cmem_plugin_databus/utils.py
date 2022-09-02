@@ -343,6 +343,6 @@ def byte_iterator_context_update(data: bytes, context: ExecutionContext, chunksi
     for i, chunk in enumerate([data[i:i + chunksize] for i in range(0, len(data), chunksize)]):
         desc = f"{desc} {get_clock(i)}"
         context.report.update(
-            ExecutionReport(entity_count=i * chunksize, operation="wait", operation_desc=desc)
+            ExecutionReport(entity_count=(i * chunksize)//1000000, operation="wait", operation_desc=desc)
         )
         yield chunk
