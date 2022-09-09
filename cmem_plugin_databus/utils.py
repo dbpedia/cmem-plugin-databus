@@ -301,7 +301,7 @@ class WebDAVHandler:
     def upload_file_with_context(self, path: str, data: bytes, context: ExecutionContext, chunk_size: int,
                                  create_parent_dirs: bool = False) -> requests.Response:
 
-        context_data_generator = byte_iterator_context_update(data, context, desc="Uploading File",
+        context_data_generator = byte_iterator_context_update(data, context, op_desc="Uploading File",
                                                               chunksize=chunk_size)
 
         if create_parent_dirs:
@@ -338,8 +338,8 @@ class WebDAVHandler:
 
 def byte_iterator_context_update(data: bytes, context: ExecutionContext, chunksize: int, desc: str) -> Iterator[bytes]:
     for i, chunk in enumerate([data[i:i + chunksize] for i in range(0, len(data), chunksize)]):
-        desc = f"{desc} {get_clock(i)}"
+        op_desc = f"{desc} {get_clock(i)}"
         context.report.update(
-            ExecutionReport(entity_count=(i * chunksize)//1000000, operation="wait", operation_desc=desc)
+            ExecutionReport(entity_count=(i * chunksize)//1000000, operation="wait", operation_desc=op_desc)
         )
         yield chunk
