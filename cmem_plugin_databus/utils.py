@@ -293,8 +293,8 @@ class WebDAVHandler:
             if not self.check_existence(current_path):
                 resp = self.create_dir(current_path)
                 responses.append(resp)
-                if resp.status_code != 405:
-                    break
+                if resp.status_code not in [200, 201, 405]:
+                    raise WebDAVException(resp)
 
         return responses
 
@@ -325,10 +325,7 @@ class WebDAVHandler:
 
         if create_parent_dirs:
             dirpath, filename = path.rsplit("/", 1)
-            responses = self.create_dirs(dirpath)
-            # when list not empty (=> every dir existed) and last one was an error raise exception
-            if responses and responses[-1].status_code not in [200, 201, 405]:
-                raise WebDAVException(responses[-1])
+            _ = self.create_dirs(dirpath)
 
         resp = requests.put(
             url=f"{self.dav_base}{path}",
