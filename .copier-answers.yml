@@ -1,9 +1,8 @@
 # Changes here will be overwritten by Copier
-_commit: v2.1.2
+_commit: v3.3.2
 _src_path: gh:eccenca/cmem-plugin-template
 author_mail: streitmatter@informatik.uni-leipzig.de
 author_name: Denis Streitmatter
-project_description: eccenca Corporate Memory build plugin to publish and load datasets
-    from a DBpedia databus service
+project_description: Load and publish datasets from a DBpedia databus service.
 project_slug: databus
 
