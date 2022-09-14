@@ -28,14 +28,14 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             name="dataset_artifact_uri",
             label="Dataset Artifact URI",
             description="The Databus Dataset Artifact for this specific dataset. It conforms to following conventions: "
-                        "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
-            default_value=""
+            "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
+            default_value="",
         ),
         PluginParameter(
             name="version",
             label="Dataset Version",
             description="The version of the Dataset. If omitted, it is automatically set to YYYY.MM.DD. NOTE: This "
-                        "can overwrite already published Datasets on the Databus!",
+            "can overwrite already published Datasets on the Databus!",
             default_value="",
         ),
         PluginParameter(
@@ -44,17 +44,21 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             description="Define the URI of the license under which the Dataset should be published",
             # In the new version this should be a dropdown menu
             param_type=ChoiceParameterType(
-                OrderedDict({'http://dalicc.net/licenselibrary/AcademicFreeLicense30': 'Academic Free License 3.0',
-                             'http://dalicc.net/licenselibrary/AdaptivePublicLicense10': 'Adaptive Public License 1.0',
-                             'http://dalicc.net/licenselibrary/ApplePublicSourceLicense20': 'Apple Public Source License 2.0',
-                             'http://dalicc.net/licenselibrary/ArtisticLicense20': 'Artistic License 2.0',
-                             'http://dalicc.net/licenselibrary/AttributionAssuranceLicense': 'Attribution Assurance License',
-                             'http://dalicc.net/licenselibrary/BoostSoftwareLicense10': 'Boost Software License 1.0',
-                             'http://dalicc.net/licenselibrary/CeaCnrsInriaLogicielLibreLicenseVersion21': 'Cea Cnrs Inria Logiciel Libre License, version 2.1',
-                             'http://dalicc.net/licenselibrary/CommonDevelopmentAndDistributionLicense10': 'Common Development and Distribution License 1.0',
-                             'http://dalicc.net/licenselibrary/CommonPublicAttributionLicenseVersion10': 'Common Public Attribution License Version 1.0',
-                             'http://dalicc.net/licenselibrary/ComputerAssociatesTrustedOpenSourceLicense11': 'Computer Associates Trusted Open Source License 1.1'}
-                            ))
+                OrderedDict(
+                    {
+                        "http://dalicc.net/licenselibrary/AcademicFreeLicense30": "Academic Free License 3.0",
+                        "http://dalicc.net/licenselibrary/AdaptivePublicLicense10": "Adaptive Public License 1.0",
+                        "http://dalicc.net/licenselibrary/ApplePublicSourceLicense20": "Apple Public Source License 2.0",
+                        "http://dalicc.net/licenselibrary/ArtisticLicense20": "Artistic License 2.0",
+                        "http://dalicc.net/licenselibrary/AttributionAssuranceLicense": "Attribution Assurance License",
+                        "http://dalicc.net/licenselibrary/BoostSoftwareLicense10": "Boost Software License 1.0",
+                        "http://dalicc.net/licenselibrary/CeaCnrsInriaLogicielLibreLicenseVersion21": "Cea Cnrs Inria Logiciel Libre License, version 2.1",
+                        "http://dalicc.net/licenselibrary/CommonDevelopmentAndDistributionLicense10": "Common Development and Distribution License 1.0",
+                        "http://dalicc.net/licenselibrary/CommonPublicAttributionLicenseVersion10": "Common Public Attribution License Version 1.0",
+                        "http://dalicc.net/licenselibrary/ComputerAssociatesTrustedOpenSourceLicense11": "Computer Associates Trusted Open Source License 1.1",
+                    }
+                )
+            ),
         ),
         PluginParameter(
             name="api_key",
@@ -78,19 +82,19 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             description="Chunksize during up/downloading the graph",
             default_value=1048576,
             advanced=True,
-        )
+        ),
     ],
 )
 class DatabusDeployPlugin(WorkflowPlugin):
     def __init__(
-            self,
-            dataset_artifact_uri: str,
-            version: str,
-            license_uri: str,
-            api_key: str,
-            source_dataset: str,
-            cvs: str,
-            chunk_size: int,
+        self,
+        dataset_artifact_uri: str,
+        version: str,
+        license_uri: str,
+        api_key: str,
+        source_dataset: str,
+        cvs: str,
+        chunk_size: int,
     ) -> None:
         self.dataset_artifact_uri = dataset_artifact_uri
         databus_base, user, _, _ = self.__get_identifier_from_artifact()
@@ -115,7 +119,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         return str(databus_base), str(user), str(group), str(artifact)
 
     def __fetch_graph_metadata(
-            self, context: ExecutionContext
+        self, context: ExecutionContext
     ) -> Tuple[str, str, str, str]:
 
         project_id = context.task.project_id()
@@ -132,7 +136,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         return str(uri), str(title), str(abstract), str(description)
 
     def execute(
-            self, inputs=(), context: ExecutionContext = ExecutionContext()
+        self, inputs=(), context: ExecutionContext = ExecutionContext()
     ) -> None:
 
         # init summary and warnings
@@ -143,16 +147,23 @@ class DatabusDeployPlugin(WorkflowPlugin):
         if self.version is None or self.version.strip(" ") == "":
             self.version = datetime.now().strftime("%Y.%m.%d")
             summary.append(("Version automatically set to", self.version))
-            warnings.append(f"Version not hardcoded, automatically set to {self.version}")
-        context.report.update(ExecutionReport(operation_desc=f"Started deploy of version {self.version}"))
+            warnings.append(
+                f"Version not hardcoded, automatically set to {self.version}"
+            )
+        context.report.update(
+            ExecutionReport(operation_desc=f"Started deploy of version {self.version}")
+        )
         setup_cmempy_super_user_access()
         # deploy metadata to databus
         try:
-            graph_uri, title, abstract, description = self.__fetch_graph_metadata(context)
+            graph_uri, title, abstract, description = self.__fetch_graph_metadata(
+                context
+            )
         except KeyError as e:
             context.report.update(
                 ExecutionReport(
-                    error=f"There was an error fetching the necessary from {self.source_dataset}:\n" + str(e)
+                    error=f"There was an error fetching the necessary from {self.source_dataset}:\n"
+                    + str(e)
                 )
             )
             return
@@ -173,7 +184,11 @@ class DatabusDeployPlugin(WorkflowPlugin):
                 data += bytearray(b)
                 desc = f"Downloading File {get_clock(i)}"
                 context.report.update(
-                    ExecutionReport(entity_count=len(data)//1000000, operation="wait", operation_desc=desc)
+                    ExecutionReport(
+                        entity_count=len(data) // 1000000,
+                        operation="wait",
+                        operation_desc=desc,
+                    )
                 )
 
         sha256sum = hashlib.sha256(bytes(data)).hexdigest()
@@ -181,19 +196,30 @@ class DatabusDeployPlugin(WorkflowPlugin):
         summary.append(("File sha256sum", str(sha256sum)))
         summary.append(("File size (bytes)", str(content_length)))
 
-        context.report.update(ExecutionReport(operation_desc=f"Uploading file to {file_target_path}"))
+        context.report.update(
+            ExecutionReport(operation_desc=f"Uploading file to {file_target_path}")
+        )
         upload_resp = self.webdav_handler.upload_file_with_context(
-            path=file_target_path, data=bytes(data), context=context, create_parent_dirs=True, chunk_size=self.chunk_size
+            path=file_target_path,
+            data=bytes(data),
+            context=context,
+            create_parent_dirs=True,
+            chunk_size=self.chunk_size,
         )
         if upload_resp.status_code >= 400:
             raise WebDAVException(upload_resp)
 
-        context.report.update(ExecutionReport(operation_desc=f"WebDAV Upload Successful ✓"))
+        context.report.update(
+            ExecutionReport(operation_desc=f"WebDAV Upload Successful ✓")
+        )
 
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
         file_url = f"{self.webdav_handler.dav_base}{file_target_path}"
         distrib = create_distribution(
-            url=file_url, cvs=self.cvs, file_format=self.fileformat, sha256_length_tuple=(sha256sum, content_length)
+            url=file_url,
+            cvs=self.cvs,
+            file_format=self.fileformat,
+            sha256_length_tuple=(sha256sum, content_length),
         )
         self.log.info(f"Distrib String: {distrib}")
         dataset = createDataset(
@@ -206,7 +232,9 @@ class DatabusDeployPlugin(WorkflowPlugin):
         )
         self.log.info(f"Submitted Dataset to Databus: {json.dumps(dataset)}")
         deploy(dataset, self.api_key)
-        context.report.update(ExecutionReport(operation_desc=f"Deployment Successful ✓"))
+        context.report.update(
+            ExecutionReport(operation_desc=f"Deployment Successful ✓")
+        )
 
 
 def _generate_abstract_from_description(description: str) -> str:
@@ -214,6 +242,6 @@ def _generate_abstract_from_description(description: str) -> str:
     if first_point == -1:
         first_sentence = description
     else:
-        first_sentence = description[0: first_point + 1]
+        first_sentence = description[0 : first_point + 1]
 
     return first_sentence

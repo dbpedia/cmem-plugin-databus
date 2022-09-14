@@ -10,7 +10,12 @@ from cmem_plugin_base.dataintegration.utils import (
 )
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
 import requests
-from .utils import DatabusFileAutocomplete, byte_iterator_context_update, post_streamed_bytes, get_clock
+from .utils import (
+    DatabusFileAutocomplete,
+    byte_iterator_context_update,
+    post_streamed_bytes,
+    get_clock,
+)
 from cmem.cmempy.workspace.tasks import get_task
 
 
@@ -39,13 +44,15 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
             description="Chunksize during up/downloading the graph",
             default_value=1048576,
             advanced=True,
-        )
+        ),
     ],
 )
 class SimpleDatabusLoadingPlugin(WorkflowPlugin):
     """Implementation of loading one file from the Databus into a given dataset"""
 
-    def __init__(self, databus_file_id: str, target_graph: str, chunk_size: int) -> None:
+    def __init__(
+        self, databus_file_id: str, target_graph: str, chunk_size: int
+    ) -> None:
         self.databus_file_id = databus_file_id
         self.target_graph = target_graph
         self.chunk_size = chunk_size
@@ -54,17 +61,23 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         task_info = get_task(project=context.task.project_id(), task=self.target_graph)
         return task_info["data"]["parameters"]["graph"]["value"]
 
-    def execute(self, inputs=(), context: ExecutionContext = ExecutionContext()) -> None:
+    def execute(
+        self, inputs=(), context: ExecutionContext = ExecutionContext()
+    ) -> None:
 
         setup_cmempy_super_user_access()
         self.log.info(f"Loading file from {self.databus_file_id}")
 
         data: bytearray = bytearray()
-        databus_file_resp = requests.get(self.databus_file_id, allow_redirects=True, stream=True)
+        databus_file_resp = requests.get(
+            self.databus_file_id, allow_redirects=True, stream=True
+        )
 
         if databus_file_resp.status_code > 400:
             context.report.update(
-                ExecutionReport(operation_desc="Download Failed ❌", error=databus_file_resp.text)
+                ExecutionReport(
+                    operation_desc="Download Failed ❌", error=databus_file_resp.text
+                )
             )
             return
 
@@ -73,18 +86,22 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
                 data += bytearray(b)
                 desc = f"Downloading File {get_clock(i)}"
                 context.report.update(
-                    ExecutionReport(entity_count=len(data)//1000000, operation="load", operation_desc=desc)
+                    ExecutionReport(
+                        entity_count=len(data) // 1000000,
+                        operation="load",
+                        operation_desc=desc,
+                    )
                 )
         graph_uri = self.__get_graph_uri(context)
         post_resp = post_streamed_bytes(
             str(graph_uri),
-            byte_iterator_context_update(bytes(data), context, self.chunk_size, "Uploading File"),
-            replace=True
+            byte_iterator_context_update(
+                bytes(data), context, self.chunk_size, "Uploading File"
+            ),
+            replace=True,
         )
         if post_resp.status_code < 400:
-            context.report.update(
-                ExecutionReport(operation_desc="Upload Successful ✓")
-            )
+            context.report.update(ExecutionReport(operation_desc="Upload Successful ✓"))
         else:
             context.report.update(
                 ExecutionReport(operation_desc="Upload Failed ❌", error=post_resp.text)
