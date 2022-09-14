@@ -1,15 +1,17 @@
 """Utils for handling the DBpedia Databus"""
 
-from typing import List, Optional, Dict, Iterator
 from dataclasses import dataclass
+from typing import Dict, Iterator, List, Optional
 from urllib.parse import quote
-from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
 
 import requests
-from SPARQLWrapper import SPARQLWrapper, JSON
-from cmem_plugin_base.dataintegration.types import StringParameterType, Autocompletion
-from cmem.cmempy.dp.proxy.graph import _get_graph_uri as cmem_get_graph_uri
 from cmem.cmempy.api import request
+from cmem.cmempy.dp.proxy.graph import _get_graph_uri as cmem_get_graph_uri
+from cmem_plugin_base.dataintegration.context import (ExecutionContext,
+                                                      ExecutionReport)
+from cmem_plugin_base.dataintegration.types import (Autocompletion,
+                                                    StringParameterType)
+from SPARQLWrapper import JSON, SPARQLWrapper
 
 
 class WebDAVException(Exception):
@@ -308,7 +310,7 @@ class WebDAVHandler:
     ) -> requests.Response:
 
         context_data_generator = byte_iterator_context_update(
-            data, context, op_desc="Uploading File", chunksize=chunk_size
+            data, context, desc="Uploading File", chunksize=chunk_size
         )
 
         if create_parent_dirs:
@@ -322,7 +324,7 @@ class WebDAVHandler:
         resp = requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
-            data=context_data_generator,
+            data=context_data_generator
         )
 
         return resp

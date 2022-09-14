@@ -1,21 +1,20 @@
 """Plugin for loading one file from the databus and write it ino a dataset"""
 
 import requests
-
 from cmem.cmempy.workspace.tasks import get_task
-
-from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
-from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
-from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
-from cmem_plugin_base.dataintegration.utils import setup_cmempy_super_user_access
+from cmem_plugin_base.dataintegration.context import (ExecutionContext,
+                                                      ExecutionReport)
+from cmem_plugin_base.dataintegration.description import (Plugin,
+                                                          PluginParameter)
+from cmem_plugin_base.dataintegration.parameter.dataset import \
+    DatasetParameterType
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
+from cmem_plugin_base.dataintegration.utils import \
+    setup_cmempy_super_user_access
 
-from cmem_plugin_databus.utils import (
-    DatabusFileAutocomplete,
-    byte_iterator_context_update,
-    post_streamed_bytes,
-    get_clock,
-)
+from cmem_plugin_databus.utils import (DatabusFileAutocomplete,
+                                       byte_iterator_context_update, get_clock,
+                                       post_streamed_bytes)
 
 
 @Plugin(
