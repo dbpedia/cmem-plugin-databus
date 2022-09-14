@@ -15,6 +15,32 @@ from typing import Tuple, List
 from .utils import WebDAVHandler, WebDAVException, get_clock
 
 
+LICENSES = OrderedDict(
+    {
+        "http://dalicc.net/licenselibrary/AcademicFreeLicense30":
+            "Academic Free License 3.0",
+        "http://dalicc.net/licenselibrary/AdaptivePublicLicense10":
+            "Adaptive Public License 1.0",
+        "http://dalicc.net/licenselibrary/ApplePublicSourceLicense20":
+            "Apple Public Source License 2.0",
+        "http://dalicc.net/licenselibrary/ArtisticLicense20":
+            "Artistic License 2.0",
+        "http://dalicc.net/licenselibrary/AttributionAssuranceLicense":
+            "Attribution Assurance License",
+        "http://dalicc.net/licenselibrary/BoostSoftwareLicense10":
+            "Boost Software License 1.0",
+        "http://dalicc.net/licenselibrary/CeaCnrsInriaLogicielLibreLicenseVersion21":
+            "Cea Cnrs Inria Logiciel Libre License, version 2.1",
+        "http://dalicc.net/licenselibrary/CommonDevelopmentAndDistributionLicense10":
+            "Common Development and Distribution License 1.0",
+        "http://dalicc.net/licenselibrary/CommonPublicAttributionLicenseVersion10":
+            "Common Public Attribution License Version 1.0",
+        "http://dalicc.net/licenselibrary/ComputerAssociatesTrustedOpenSourceLicense11":
+            "Computer Associates Trusted Open Source License 1.1",
+    }
+)
+
+
 @Plugin(
     label="Databus Deploy Plugin",
     description="Deploys a graph to the Databus",
@@ -27,48 +53,38 @@ The knowledge graph will be deployed as a turtle file to the Databus.
         PluginParameter(
             name="dataset_artifact_uri",
             label="Dataset Artifact URI",
-            description="The Databus Dataset Artifact for this specific dataset. It conforms to following conventions: "
-            "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
+            description="The Databus Dataset Artifact for this specific dataset."
+                        " It conforms to following conventions: "
+                        "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
             default_value="",
         ),
         PluginParameter(
             name="version",
             label="Dataset Version",
-            description="The version of the Dataset. If omitted, it is automatically set to YYYY.MM.DD. NOTE: This "
-            "can overwrite already published Datasets on the Databus!",
+            description="The version of the Dataset. If omitted, it is automatically"
+                        " set to YYYY.MM.DD. NOTE: This can overwrite already"
+                        " published Datasets on the Databus!",
             default_value="",
         ),
         PluginParameter(
             name="license_uri",
             label="Dataset License URI",
-            description="Define the URI of the license under which the Dataset should be published",
+            description="Define the URI of the license under which the "
+                        "Dataset should be published",
             # In the new version this should be a dropdown menu
-            param_type=ChoiceParameterType(
-                OrderedDict(
-                    {
-                        "http://dalicc.net/licenselibrary/AcademicFreeLicense30": "Academic Free License 3.0",
-                        "http://dalicc.net/licenselibrary/AdaptivePublicLicense10": "Adaptive Public License 1.0",
-                        "http://dalicc.net/licenselibrary/ApplePublicSourceLicense20": "Apple Public Source License 2.0",
-                        "http://dalicc.net/licenselibrary/ArtisticLicense20": "Artistic License 2.0",
-                        "http://dalicc.net/licenselibrary/AttributionAssuranceLicense": "Attribution Assurance License",
-                        "http://dalicc.net/licenselibrary/BoostSoftwareLicense10": "Boost Software License 1.0",
-                        "http://dalicc.net/licenselibrary/CeaCnrsInriaLogicielLibreLicenseVersion21": "Cea Cnrs Inria Logiciel Libre License, version 2.1",
-                        "http://dalicc.net/licenselibrary/CommonDevelopmentAndDistributionLicense10": "Common Development and Distribution License 1.0",
-                        "http://dalicc.net/licenselibrary/CommonPublicAttributionLicenseVersion10": "Common Public Attribution License Version 1.0",
-                        "http://dalicc.net/licenselibrary/ComputerAssociatesTrustedOpenSourceLicense11": "Computer Associates Trusted Open Source License 1.1",
-                    }
-                )
-            ),
+            param_type=ChoiceParameterType(LICENSES)
         ),
         PluginParameter(
             name="api_key",
             label="API KEY",
-            description="An API Key of your Databus Account. Can be found/created at $DATABUS_BASE/$ACCOUNT#settings",
+            description="An API Key of your Databus Account."
+                        " Can be found/created at $DATABUS_BASE/$ACCOUNT#settings",
         ),
         PluginParameter(
             name="cvs",
             label="Content Variants",
-            description="Key-Value-Pairs identifying a File uniquely. Example: key1=val1,key2=val2",
+            description="Key-Value-Pairs identifying a File uniquely."
+                        " Example: key1=val1,key2=val2",
         ),
         PluginParameter(
             name="source_dataset",
@@ -162,8 +178,8 @@ class DatabusDeployPlugin(WorkflowPlugin):
         except KeyError as e:
             context.report.update(
                 ExecutionReport(
-                    error=f"There was an error fetching the necessary from {self.source_dataset}:\n"
-                    + str(e)
+                    error="There was an error fetching the necessary from"
+                          f" {self.source_dataset}:\n" + str(e)
                 )
             )
             return
@@ -175,7 +191,8 @@ class DatabusDeployPlugin(WorkflowPlugin):
         # generating some required strings
         cv_string = "_".join([f"{k}={v}" for k, v in self.cvs.items()])
 
-        file_target_path = f"{group}/{artifact}/{self.version}/{artifact}_{cv_string}.{self.fileformat}"
+        file_target_path = f"{group}/{artifact}/{self.version}/" \
+                           f"{artifact}_{cv_string}.{self.fileformat}"
 
         # fetch data
         data: bytearray = bytearray()
@@ -210,7 +227,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             raise WebDAVException(upload_resp)
 
         context.report.update(
-            ExecutionReport(operation_desc=f"WebDAV Upload Successful ✓")
+            ExecutionReport(operation_desc="WebDAV Upload Successful ✓")
         )
 
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
@@ -233,7 +250,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         self.log.info(f"Submitted Dataset to Databus: {json.dumps(dataset)}")
         deploy(dataset, self.api_key)
         context.report.update(
-            ExecutionReport(operation_desc=f"Deployment Successful ✓")
+            ExecutionReport(operation_desc="Deployment Successful ✓")
         )
 
 

@@ -1,8 +1,7 @@
 """Utils for handling the DBpedia Databus"""
 
-from typing import List, Optional, Dict, Generator, Iterator
+from typing import List, Optional, Dict, Iterator
 from dataclasses import dataclass
-from urllib.error import URLError
 from urllib.parse import quote
 from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
 
@@ -16,7 +15,8 @@ from cmem.cmempy.api import request
 class WebDAVException(Exception):
     def __init__(self, resp: requests.Response):
         super().__init__(
-            f"Exception during WebDAV Request {resp.request.method} to {resp.request.url}: Status {resp.status_code}\nResponse: {resp.text}"
+            f"Exception during WebDAV Request {resp.request.method} to "
+            f"{resp.request.url}: Status {resp.status_code}\nResponse: {resp.text}"
         )
 
 
@@ -110,7 +110,7 @@ def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> List[str]:
     query_results = sparql_service.query().convert()
 
     # just to make mypy stop complaining
-    assert isinstance(query_results, dict)
+    assert isinstance(query_results, dict)  # nosec
 
     try:
         results = list(
@@ -212,7 +212,10 @@ class DatabusFileAutocomplete(StringParameterType):
 
     @staticmethod
     def fetch_results_by_uri(query_str: str) -> List[str]:
-        """Fetches results for autocompletion for Databus File Identifiers and returns a list of URIs"""
+        """
+        Fetches results for autocompletion for Databus File Identifiers
+        and returns a list of URIs
+        """
 
         query_no_http = query_str.replace("https://", "")
         parts = query_no_http.rstrip("/ ").rsplit("/", 5)
@@ -239,8 +242,7 @@ class DatabusFileAutocomplete(StringParameterType):
                 # when it's a version -> return files
                 return load_files(endpoint, normalized_querystr)
         except Exception:
-            pass
-
+            return [query_str]
         return [query_str]
 
     @staticmethod
@@ -312,7 +314,8 @@ class WebDAVHandler:
         if create_parent_dirs:
             dirpath, filename = path.rsplit("/", 1)
             responses = self.create_dirs(dirpath)
-            # when list not empty (=> every dir existed) and last one was an error raise exception
+            # when list not empty (=> every dir existed) and last one was an error
+            # -> raise exception
             if responses and responses[-1].status_code not in [200, 201, 405]:
                 raise WebDAVException(responses[-1])
 
