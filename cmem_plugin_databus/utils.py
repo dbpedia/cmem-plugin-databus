@@ -15,6 +15,7 @@ from SPARQLWrapper import JSON, SPARQLWrapper
 
 
 class WebDAVException(Exception):
+    """Generalized exception for WebDAV requests"""
     def __init__(self, resp: requests.Response):
         super().__init__(
             f"Exception during WebDAV Request {resp.request.method} to "
@@ -71,13 +72,15 @@ def get_clock(counter: int) -> str:
 
 @dataclass
 class DatabusSearchResult:
-    typeName: str
+    """Databus Search Result"""
+    type_name: str
     score: float
     label: str
     resource: str
 
 
 def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResult:
+    """creates a DatabusSearchResult from a json_dict"""
     return DatabusSearchResult(
         json_dict["typeName"][0],
         float(json_dict["score"][0]),
@@ -89,6 +92,7 @@ def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResul
 def fetch_api_search_result(
     databus_base: str, query_str: str
 ) -> List[DatabusSearchResult]:
+    """Fetches Search Results."""
     encoded_query_str = quote(query_str)
 
     request_uri = f"{databus_base}/api/search?query={encoded_query_str}"
@@ -260,6 +264,7 @@ class WebDAVHandler:
         self.api_key = api_key
 
     def check_existence(self, path: str) -> bool:
+        """check if path is available"""
         try:
             resp = requests.head(url=f"{self.dav_base}{path}")
         except requests.RequestException:
