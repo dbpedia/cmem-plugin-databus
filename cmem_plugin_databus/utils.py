@@ -326,10 +326,11 @@ class WebDAVHandler:
             if responses and responses[-1].status_code not in [200, 201, 405]:
                 raise WebDAVException(responses[-1])
 
+        # TODO: check why mypy has a problem with this
         resp = requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
-            data=context_data_generator
+            data=context_data_generator  # type: ignore
         )
 
         return resp
