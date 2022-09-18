@@ -5,7 +5,6 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import List, Tuple
 
-from cmem.cmempy.dp.proxy.graph import get_streamed
 from cmem.cmempy.workspace.tasks import get_task
 from cmem_plugin_base.dataintegration.context import (ExecutionContext,
                                                       ExecutionReport)
@@ -20,7 +19,8 @@ from cmem_plugin_base.dataintegration.utils import \
     setup_cmempy_super_user_access
 from databusclient import create_distribution, createDataset, deploy
 
-from .utils import WebDAVException, WebDAVHandler, get_clock
+from cmem_plugin_databus.utils import WebDAVException, WebDAVHandler, get_clock
+from cmem_plugin_databus.cmem_wrappers import get_streamed
 
 NS = "http://dalicc.net/licenselibrary/"
 

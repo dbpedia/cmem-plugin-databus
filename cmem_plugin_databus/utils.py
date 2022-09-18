@@ -5,8 +5,6 @@ from typing import Dict, Iterator, List
 from urllib.parse import quote
 
 import requests
-from cmem.cmempy.api import request
-from cmem.cmempy.dp.proxy.graph import _get_graph_uri as cmem_get_graph_uri
 from cmem_plugin_base.dataintegration.context import (ExecutionContext,
                                                       ExecutionReport,
                                                       PluginContext)
@@ -24,36 +22,6 @@ class WebDAVException(Exception):
             f"Exception during WebDAV Request {resp.request.method} to "
             f"{resp.request.url}: Status {resp.status_code}\nResponse: {resp.text}"
         )
-
-
-def post_streamed_bytes(
-    graph: str,
-    data: Iterator[bytes],
-    endpoint_id="default",
-    replace=False,
-    content_type="text/turtle",
-):
-    """Upload graph (streamed).
-
-    Add the content of triple to a remote graph or replace the remote graph
-    with the content of a triple file.
-
-    Args:
-        graph (str): The URI of the remote graph.
-        data: content as BytesIO
-        endpoint_id (str): Optional endpoint ID (always 'default').
-        replace (bool): add (False) or replace (True)
-        content_type (str): mime type of the file to post (default is turtle)
-
-    Returns:
-        requests.Response object
-
-    """
-    uri = cmem_get_graph_uri(endpoint_id, graph) + "&replace=" + str(replace).lower()
-    headers = {"Content-Type": content_type}
-    # https://2.python-requests.org/en/master/user/advanced/#streaming-uploads
-    response = request(uri, method="POST", headers=headers, data=data, stream=True)
-    return response
 
 
 def get_clock(counter: int) -> str:

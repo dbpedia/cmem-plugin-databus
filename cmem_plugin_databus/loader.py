@@ -13,8 +13,8 @@ from cmem_plugin_base.dataintegration.utils import \
     setup_cmempy_super_user_access
 
 from cmem_plugin_databus.utils import (DatabusFileAutocomplete,
-                                       byte_iterator_context_update, get_clock,
-                                       post_streamed_bytes)
+                                       byte_iterator_context_update, get_clock)
+from cmem_plugin_databus.cmem_wrappers import post_streamed_bytes
 
 
 @Plugin(
