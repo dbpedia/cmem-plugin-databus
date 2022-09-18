@@ -67,7 +67,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         self.log.info(f"Loading file from {self.databus_file_id}")
 
         data: bytearray = bytearray()
-        databus_file_resp = requests.get(
+        databus_file_resp = requests.get(  # pylint: disable=missing-timeout
             self.databus_file_id, allow_redirects=True, stream=True
         )
 
@@ -80,9 +80,9 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
             return
 
         with databus_file_resp as resp:
-            for i, b in enumerate(resp.iter_content(chunk_size=self.chunk_size)):
-                data += bytearray(b)
-                desc = f"Downloading File {get_clock(i)}"
+            for _, chunk in enumerate(resp.iter_content(chunk_size=self.chunk_size)):
+                data += bytearray(chunk)
+                desc = f"Downloading File {get_clock(_)}"
                 context.report.update(
                     ExecutionReport(
                         entity_count=len(data) // 1000000,

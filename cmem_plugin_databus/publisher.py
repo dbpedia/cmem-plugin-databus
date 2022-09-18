@@ -1,3 +1,4 @@
+"""Deploys a graph to the Databus"""
 import hashlib
 import json
 from collections import OrderedDict
@@ -21,27 +22,23 @@ from databusclient import create_distribution, createDataset, deploy
 
 from .utils import WebDAVException, WebDAVHandler, get_clock
 
+NS = "http://dalicc.net/licenselibrary/"
+
 LICENSES = OrderedDict(
     {
-        "http://dalicc.net/licenselibrary/AcademicFreeLicense30":
-            "Academic Free License 3.0",
-        "http://dalicc.net/licenselibrary/AdaptivePublicLicense10":
-            "Adaptive Public License 1.0",
-        "http://dalicc.net/licenselibrary/ApplePublicSourceLicense20":
-            "Apple Public Source License 2.0",
-        "http://dalicc.net/licenselibrary/ArtisticLicense20":
-            "Artistic License 2.0",
-        "http://dalicc.net/licenselibrary/AttributionAssuranceLicense":
-            "Attribution Assurance License",
-        "http://dalicc.net/licenselibrary/BoostSoftwareLicense10":
-            "Boost Software License 1.0",
-        "http://dalicc.net/licenselibrary/CeaCnrsInriaLogicielLibreLicenseVersion21":
+        f"{NS}AcademicFreeLicense30": "Academic Free License 3.0",
+        f"{NS}AdaptivePublicLicense10": "Adaptive Public License 1.0",
+        f"{NS}ApplePublicSourceLicense20": "Apple Public Source License 2.0",
+        f"{NS}ArtisticLicense20": "Artistic License 2.0",
+        f"{NS}AttributionAssuranceLicense": "Attribution Assurance License",
+        f"{NS}BoostSoftwareLicense10": "Boost Software License 1.0",
+        f"{NS}CeaCnrsInriaLogicielLibreLicenseVersion21":
             "Cea Cnrs Inria Logiciel Libre License, version 2.1",
-        "http://dalicc.net/licenselibrary/CommonDevelopmentAndDistributionLicense10":
+        f"{NS}CommonDevelopmentAndDistributionLicense10":
             "Common Development and Distribution License 1.0",
-        "http://dalicc.net/licenselibrary/CommonPublicAttributionLicenseVersion10":
+        f"{NS}CommonPublicAttributionLicenseVersion10":
             "Common Public Attribution License Version 1.0",
-        "http://dalicc.net/licenselibrary/ComputerAssociatesTrustedOpenSourceLicense11":
+        f"{NS}ComputerAssociatesTrustedOpenSourceLicense11":
             "Computer Associates Trusted Open Source License 1.1",
     }
 )
@@ -60,37 +57,37 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             name="dataset_artifact_uri",
             label="Dataset Artifact URI",
             description="The Databus Dataset Artifact for this specific dataset."
-                        " It conforms to following conventions: "
-                        "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
+            " It conforms to following conventions: "
+            "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
             default_value="",
         ),
         PluginParameter(
             name="version",
             label="Dataset Version",
             description="The version of the Dataset. If omitted, it is automatically"
-                        " set to YYYY.MM.DD. NOTE: This can overwrite already"
-                        " published Datasets on the Databus!",
+            " set to YYYY.MM.DD. NOTE: This can overwrite already"
+            " published Datasets on the Databus!",
             default_value="",
         ),
         PluginParameter(
             name="license_uri",
             label="Dataset License URI",
             description="Define the URI of the license under which the "
-                        "Dataset should be published",
+            "Dataset should be published",
             # In the new version this should be a dropdown menu
-            param_type=ChoiceParameterType(LICENSES)
+            param_type=ChoiceParameterType(LICENSES),
         ),
         PluginParameter(
             name="api_key",
             label="API KEY",
             description="An API Key of your Databus Account."
-                        " Can be found/created at $DATABUS_BASE/$ACCOUNT#settings",
+            " Can be found/created at $DATABUS_BASE/$ACCOUNT#settings",
         ),
         PluginParameter(
             name="cvs",
             label="Content Variants",
             description="Key-Value-Pairs identifying a File uniquely."
-                        " Example: key1=val1,key2=val2",
+            " Example: key1=val1,key2=val2",
         ),
         PluginParameter(
             name="source_dataset",
@@ -108,6 +105,10 @@ The knowledge graph will be deployed as a turtle file to the Databus.
     ],
 )
 class DatabusDeployPlugin(WorkflowPlugin):
+    """Deploys a graph to the Databus"""
+
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(
         self,
         dataset_artifact_uri: str,
@@ -118,6 +119,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         cvs: str,
         chunk_size: int,
     ) -> None:
+        # pylint: disable=too-many-arguments
         self.dataset_artifact_uri = dataset_artifact_uri
         databus_base, user, _, _ = self.__get_identifier_from_artifact()
         self.webdav_handler = WebDAVHandler(
@@ -127,9 +129,9 @@ class DatabusDeployPlugin(WorkflowPlugin):
         self.license_uri = license_uri
         self.api_key = api_key
         self.cvs = {}
-        for cv_str in cvs.split(","):
-            k, v = cv_str.split("=")
-            self.cvs[k] = v
+        for content_variant in cvs.split(","):
+            key, value = content_variant.split("=")
+            self.cvs[key] = value
         self.fileformat = "ttl"
         self.source_dataset = source_dataset
         self.chunk_size = chunk_size
@@ -160,6 +162,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
     def execute(
         self, inputs=(), context: ExecutionContext = ExecutionContext()
     ) -> None:
+        # pylint: disable=too-many-locals
 
         # init summary and warnings
         summary: List[Tuple[str, str]] = []
@@ -181,11 +184,11 @@ class DatabusDeployPlugin(WorkflowPlugin):
             graph_uri, title, abstract, description = self.__fetch_graph_metadata(
                 context
             )
-        except KeyError as e:
+        except KeyError as error:
             context.report.update(
                 ExecutionReport(
                     error="There was an error fetching the necessary from"
-                          f" {self.source_dataset}:\n" + str(e)
+                    f" {self.source_dataset}:\n" + str(error)
                 )
             )
             return
@@ -197,15 +200,17 @@ class DatabusDeployPlugin(WorkflowPlugin):
         # generating some required strings
         cv_string = "_".join([f"{k}={v}" for k, v in self.cvs.items()])
 
-        file_target_path = f"{group}/{artifact}/{self.version}/" \
-                           f"{artifact}_{cv_string}.{self.fileformat}"
+        file_target_path = (
+            f"{group}/{artifact}/{self.version}/"
+            f"{artifact}_{cv_string}.{self.fileformat}"
+        )
 
         # fetch data
         data: bytearray = bytearray()
         with get_streamed(graph_uri, accept="text/turtle") as resp:
-            for i, b in enumerate(resp.iter_content(chunk_size=self.chunk_size)):
-                data += bytearray(b)
-                desc = f"Downloading File {get_clock(i)}"
+            for _, chunk in enumerate(resp.iter_content(chunk_size=self.chunk_size)):
+                data += bytearray(chunk)
+                desc = f"Get graph stream {get_clock(_)}"
                 context.report.update(
                     ExecutionReport(
                         entity_count=len(data) // 1000000,
@@ -255,9 +260,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         )
         self.log.info(f"Submitted Dataset to Databus: {json.dumps(dataset)}")
         deploy(dataset, self.api_key)
-        context.report.update(
-            ExecutionReport(operation_desc="Deployment Successful ✓")
-        )
+        context.report.update(ExecutionReport(operation_desc="Deployment Successful ✓"))
 
 
 def _generate_abstract_from_description(description: str) -> str:

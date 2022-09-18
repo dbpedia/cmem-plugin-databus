@@ -1,21 +1,24 @@
 """Utils for handling the DBpedia Databus"""
 
 from dataclasses import dataclass
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List
 from urllib.parse import quote
 
 import requests
 from cmem.cmempy.api import request
 from cmem.cmempy.dp.proxy.graph import _get_graph_uri as cmem_get_graph_uri
 from cmem_plugin_base.dataintegration.context import (ExecutionContext,
-                                                      ExecutionReport)
+                                                      ExecutionReport,
+                                                      PluginContext)
 from cmem_plugin_base.dataintegration.types import (Autocompletion,
                                                     StringParameterType)
+from requests import RequestException
 from SPARQLWrapper import JSON, SPARQLWrapper
 
 
 class WebDAVException(Exception):
     """Generalized exception for WebDAV requests"""
+
     def __init__(self, resp: requests.Response):
         super().__init__(
             f"Exception during WebDAV Request {resp.request.method} to "
@@ -73,6 +76,7 @@ def get_clock(counter: int) -> str:
 @dataclass
 class DatabusSearchResult:
     """Databus Search Result"""
+
     type_name: str
     score: float
     label: str
@@ -97,7 +101,7 @@ def fetch_api_search_result(
 
     request_uri = f"{databus_base}/api/search?query={encoded_query_str}"
 
-    json_resp = requests.get(request_uri).json()
+    json_resp = requests.get(request_uri, timeout=30).json()
 
     result = []
 
@@ -108,7 +112,8 @@ def fetch_api_search_result(
 
 
 def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> List[str]:
-    """Sends a query to the given endpint and collects all results of a key in a list"""
+    """Sends a query to the given endpoint and collects all results
+    of a key in a list"""
     sparql_service = SPARQLWrapper(endpoint)
     sparql_service.setQuery(query)
     sparql_service.setReturnFormat(JSON)
@@ -210,7 +215,7 @@ class DatabusFileAutocomplete(StringParameterType):
     """Class for autocompleting identifiers from an arbitrary databus"""
 
     def autocomplete(
-        self, query_terms: list[str], project_id: Optional[str] = None
+        self, query_terms: list[str], context: PluginContext
     ) -> list[Autocompletion]:
         return self.__transform_uris_to_autocompletion(
             self.fetch_results_by_uri(query_terms[0])
@@ -222,6 +227,7 @@ class DatabusFileAutocomplete(StringParameterType):
         Fetches results for autocompletion for Databus File Identifiers
         and returns a list of URIs
         """
+        # pylint: disable=too-many-return-statements
 
         query_no_http = query_str.replace("https://", "")
         parts = query_no_http.rstrip("/ ").rsplit("/", 5)
@@ -247,7 +253,7 @@ class DatabusFileAutocomplete(StringParameterType):
             if len(parts) == 5:
                 # when it's a version -> return files
                 return load_files(endpoint, normalized_querystr)
-        except Exception:
+        except RequestException:
             return [query_str]
         return [query_str]
 
@@ -259,6 +265,8 @@ class DatabusFileAutocomplete(StringParameterType):
 
 
 class WebDAVHandler:
+    """Work with a WebDAV endpoint."""
+
     def __init__(self, databus_base: str, user: str, api_key: str):
         self.dav_base = databus_base + f"dav/{user}/"
         self.api_key = api_key
@@ -266,18 +274,19 @@ class WebDAVHandler:
     def check_existence(self, path: str) -> bool:
         """check if path is available"""
         try:
-            resp = requests.head(url=f"{self.dav_base}{path}")
+            resp = requests.head(
+                url=f"{self.dav_base}{path}",
+                timeout=4
+            )
         except requests.RequestException:
             return False
 
-        if resp.status_code == 405:
-            return True
-        else:
-            return False
+        return bool(resp.status_code == 405)
 
     def create_dir(
         self, path: str, session: requests.Session = None
     ) -> requests.Response:
+        """create directory"""
 
         if session is None:
             session = requests.Session()
@@ -291,6 +300,7 @@ class WebDAVHandler:
         return resp
 
     def create_dirs(self, path: str) -> List[requests.Response]:
+        """create directories"""
 
         dirs = path.split("/")
         responses = []
@@ -313,13 +323,15 @@ class WebDAVHandler:
         chunk_size: int,
         create_parent_dirs: bool = False,
     ) -> requests.Response:
+        """upload file + updating report (?)"""
+        # pylint: disable=too-many-arguments
 
         context_data_generator = byte_iterator_context_update(
             data, context, desc="Uploading File", chunksize=chunk_size
         )
 
         if create_parent_dirs:
-            dirpath, filename = path.rsplit("/", 1)
+            dirpath = path.rsplit("/", 1)[0]
             responses = self.create_dirs(dirpath)
             # when list not empty (=> every dir existed) and last one was an error
             # -> raise exception
@@ -327,10 +339,10 @@ class WebDAVHandler:
                 raise WebDAVException(responses[-1])
 
         # TODO: check why mypy has a problem with this
-        resp = requests.put(
+        resp = requests.put(  # pylint: disable=missing-timeout
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
-            data=context_data_generator  # type: ignore
+            data=context_data_generator,  # type: ignore
         )
 
         return resp
@@ -338,12 +350,13 @@ class WebDAVHandler:
     def upload_file(
         self, path: str, data: bytes, create_parent_dirs: bool = False
     ) -> requests.Response:
+        """upload data in bytes to a path, optionally creating parent dirs."""
 
         if create_parent_dirs:
-            dirpath, filename = path.rsplit("/", 1)
-            _ = self.create_dirs(dirpath)
+            dirpath = path.rsplit("/", 1)[0]
+            self.create_dirs(dirpath)
 
-        resp = requests.put(
+        resp = requests.put(  # pylint: disable=missing-timeout
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
             data=data,
@@ -355,6 +368,7 @@ class WebDAVHandler:
 def byte_iterator_context_update(
     data: bytes, context: ExecutionContext, chunksize: int, desc: str
 ) -> Iterator[bytes]:
+    """update Execution report"""
     for i, chunk in enumerate(
         [data[i : i + chunksize] for i in range(0, len(data), chunksize)]
     ):
