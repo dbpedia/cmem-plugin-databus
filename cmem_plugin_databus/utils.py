@@ -311,6 +311,7 @@ class WebDAVHandler:
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
             data=context_data_generator,  # type: ignore
+            stream=True,
         )
 
         return resp
