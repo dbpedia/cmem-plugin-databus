@@ -6,32 +6,38 @@ from datetime import datetime
 from typing import List, Tuple
 
 from cmem.cmempy.workspace.tasks import get_task
-from cmem_plugin_base.dataintegration.context import (ExecutionContext,
-                                                      ExecutionReport)
-from cmem_plugin_base.dataintegration.description import (Plugin,
-                                                          PluginParameter)
-from cmem_plugin_base.dataintegration.parameter.choice import \
-    ChoiceParameterType
-from cmem_plugin_base.dataintegration.parameter.dataset import \
-    DatasetParameterType
+from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
+from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
+from cmem_plugin_base.dataintegration.parameter.choice import ChoiceParameterType
+from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
-from cmem_plugin_base.dataintegration.utils import \
-    setup_cmempy_super_user_access
+from cmem_plugin_base.dataintegration.utils import setup_cmempy_super_user_access
 from databusclient import create_distribution, createDataset, deploy
 
-from cmem_plugin_databus.utils import WebDAVException, WebDAVHandler, get_clock
+from cmem_plugin_databus.utils import (
+    WebDAVException,
+    WebDAVHandler,
+    get_clock,
+    MissingMetadataException,
+)
 from cmem_plugin_databus.cmem_wrappers import get_streamed
 
 NS = "http://dalicc.net/licenselibrary/"
 
 LICENSES = OrderedDict(
     {
-        f"{NS}AcademicFreeLicense30": "Academic Free License 3.0",
-        f"{NS}AdaptivePublicLicense10": "Adaptive Public License 1.0",
-        f"{NS}ApplePublicSourceLicense20": "Apple Public Source License 2.0",
-        f"{NS}ArtisticLicense20": "Artistic License 2.0",
-        f"{NS}AttributionAssuranceLicense": "Attribution Assurance License",
-        f"{NS}BoostSoftwareLicense10": "Boost Software License 1.0",
+        f"{NS}AcademicFreeLicense30":
+            "Academic Free License 3.0",
+        f"{NS}AdaptivePublicLicense10":
+            "Adaptive Public License 1.0",
+        f"{NS}ApplePublicSourceLicense20":
+            "Apple Public Source License 2.0",
+        f"{NS}ArtisticLicense20":
+            "Artistic License 2.0",
+        f"{NS}AttributionAssuranceLicense":
+            "Attribution Assurance License",
+        f"{NS}BoostSoftwareLicense10":
+            "Boost Software License 1.0",
         f"{NS}CeaCnrsInriaLogicielLibreLicenseVersion21":
             "Cea Cnrs Inria Logiciel Libre License, version 2.1",
         f"{NS}CommonDevelopmentAndDistributionLicense10":
@@ -150,12 +156,21 @@ class DatabusDeployPlugin(WorkflowPlugin):
         task_id = self.source_dataset
         metadata_dict = get_task(project=project_id, task=task_id)
 
-        self.log.error(str(metadata_dict))
+        self.log.info("Fetched " + str(metadata_dict))
 
-        uri = metadata_dict["data"]["parameters"]["graph"]["value"]
-        title = metadata_dict["metadata"]["label"]
-        description = metadata_dict["metadata"]["description"]
-        abstract = _generate_abstract_from_description(description)
+        try:
+            uri: str = metadata_dict["data"]["parameters"]["graph"]["value"]
+            title: str = metadata_dict["metadata"]["label"]
+            description: str = metadata_dict["metadata"]["description"]
+            abstract: str = _generate_abstract_from_description(description)
+        except KeyError as key_err:
+            raise MissingMetadataException(
+                f"CMEM task {task_id}", key_err.args[0]
+            ) from key_err
+
+        for name, text in {"label": title, "description": description}.items():
+            if text.strip() == "":
+                raise MissingMetadataException(f"CMEM task {task_id}", name)
 
         return str(uri), str(title), str(abstract), str(description)
 
@@ -184,11 +199,10 @@ class DatabusDeployPlugin(WorkflowPlugin):
             graph_uri, title, abstract, description = self.__fetch_graph_metadata(
                 context
             )
-        except KeyError as error:
+        except MissingMetadataException as mm_exception:
             context.report.update(
                 ExecutionReport(
-                    error="There was an error fetching the necessary from"
-                    f" {self.source_dataset}:\n" + str(error)
+                    error=str(mm_exception)
                 )
             )
             return

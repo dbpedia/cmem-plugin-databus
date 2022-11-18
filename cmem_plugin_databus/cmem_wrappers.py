@@ -8,11 +8,11 @@ from cmem.cmempy.api import request
 
 
 def post_streamed_bytes(
-        graph: str,
-        data: Iterator[bytes],
-        endpoint_id="default",
-        replace=False,
-        content_type="text/turtle",
+    graph: str,
+    data: Iterator[bytes],
+    endpoint_id="default",
+    replace=False,
+    content_type="text/turtle",
 ):
     """Upload graph (streamed).
 
@@ -38,10 +38,10 @@ def post_streamed_bytes(
 
 
 def get_streamed(
-        graph,
-        endpoint_id="default",
-        owl_imports_resolution=False,
-        accept="application/n-triples"
+    graph,
+    endpoint_id="default",
+    owl_imports_resolution=False,
+    accept="application/n-triples",
 ):
     """GET graph (streamed).
 
@@ -61,5 +61,5 @@ def get_streamed(
         endpoint_id=endpoint_id,
         owl_imports_resolution=owl_imports_resolution,
         accept=accept,
-        stream=True
+        stream=True,
     )

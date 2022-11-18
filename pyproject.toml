@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cmem-plugin-databus"
-version = "0.0.0"
+version = "0.0.0.post39.dev0+74767f9"
 license = "Apache-2.0"
 description = "Load and publish datasets from a DBpedia databus service."
 authors = ["Denis Streitmatter <streitmatter@informatik.uni-leipzig.de>"]
@@ -26,7 +26,7 @@ pytest-cov = "^3.0.0"
 black = "^22.1.0"
 bandit = "^1.7.2"
 pylint-junit = "^0.3.2"
-safety = "^1.10.3"
+safety = "^2.3.1"
 genbadge = "^1.0.6"
 flake8-formatter-junit-xml = "^0.0.6"
 typed-ast = "^1.5.2"
@@ -42,7 +42,7 @@ requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry-dynamic-versioning]
-enable = true
+enable = false
 vcs = "git"
 dirty = true
 

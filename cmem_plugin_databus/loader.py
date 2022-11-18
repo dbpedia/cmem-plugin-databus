@@ -2,18 +2,16 @@
 
 import requests
 from cmem.cmempy.workspace.tasks import get_task
-from cmem_plugin_base.dataintegration.context import (ExecutionContext,
-                                                      ExecutionReport)
-from cmem_plugin_base.dataintegration.description import (Plugin,
-                                                          PluginParameter)
-from cmem_plugin_base.dataintegration.parameter.dataset import \
-    DatasetParameterType
+from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
+from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
+from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
-from cmem_plugin_base.dataintegration.utils import \
-    setup_cmempy_super_user_access
+from cmem_plugin_base.dataintegration.utils import setup_cmempy_super_user_access
 
-from cmem_plugin_databus.utils import (DatabusFileAutocomplete,
-                                       byte_iterator_context_update, get_clock)
+from cmem_plugin_databus.utils import (
+    byte_iterator_context_update,
+    get_clock,
+)
 from cmem_plugin_databus.cmem_wrappers import post_streamed_bytes
 
 
@@ -34,7 +32,6 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
             name="databus_file_id",
             label="Databus File ID",
             description="The Databus file id of the file to download",
-            param_type=DatabusFileAutocomplete(),
         ),
         PluginParameter(
             name="chunk_size",

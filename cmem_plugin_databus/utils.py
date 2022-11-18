@@ -5,11 +5,12 @@ from typing import Dict, Iterator, List
 from urllib.parse import quote
 
 import requests
-from cmem_plugin_base.dataintegration.context import (ExecutionContext,
-                                                      ExecutionReport,
-                                                      PluginContext)
-from cmem_plugin_base.dataintegration.types import (Autocompletion,
-                                                    StringParameterType)
+from cmem_plugin_base.dataintegration.context import (
+    ExecutionContext,
+    ExecutionReport,
+    PluginContext,
+)
+from cmem_plugin_base.dataintegration.types import Autocompletion, StringParameterType
 from requests import RequestException
 from SPARQLWrapper import JSON, SPARQLWrapper
 
@@ -21,6 +22,16 @@ class WebDAVException(Exception):
         super().__init__(
             f"Exception during WebDAV Request {resp.request.method} to "
             f"{resp.request.url}: Status {resp.status_code}\nResponse: {resp.text}"
+        )
+
+
+class MissingMetadataException(Exception):
+    """Exception for missing metadata labels from a given Source"""
+
+    def __init__(self, source: str, metadata_label: str):
+        super().__init__(
+            f"Exeption during Metadata access from {source}: "
+            f"{metadata_label} could not be fetched or is empty"
         )
 
 
@@ -202,7 +213,7 @@ class DatabusFileAutocomplete(StringParameterType):
 
         endpoint = "https://" + parts[0] + "/sparql"
 
-        normalized_querystr = query_str[0 : query_str.rfind("/")]
+        normalized_querystr = query_str[0: query_str.rfind("/")]
 
         try:
             if len(parts) == 1:
@@ -242,10 +253,7 @@ class WebDAVHandler:
     def check_existence(self, path: str) -> bool:
         """check if path is available"""
         try:
-            resp = requests.head(
-                url=f"{self.dav_base}{path}",
-                timeout=4
-            )
+            resp = requests.head(url=f"{self.dav_base}{path}", timeout=4)
         except requests.RequestException:
             return False
 
