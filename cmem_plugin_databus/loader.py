@@ -64,8 +64,8 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         self.log.info(f"Loading file from {self.databus_file_id}")
 
         data: bytearray = bytearray()
-        databus_file_resp = requests.get(  # pylint: disable=missing-timeout
-            self.databus_file_id, allow_redirects=True, stream=True
+        databus_file_resp = requests.get(
+            self.databus_file_id, allow_redirects=True, stream=True, timeout=3000,
         )
 
         if databus_file_resp.status_code > 400:

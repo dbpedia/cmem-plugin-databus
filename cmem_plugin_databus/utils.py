@@ -315,11 +315,12 @@ class WebDAVHandler:
                 raise WebDAVException(responses[-1])
 
         # TODO: check why mypy has a problem with this
-        resp = requests.put(  # pylint: disable=missing-timeout
+        resp = requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
             data=context_data_generator,  # type: ignore
             stream=True,
+            timeout=3000,
         )
 
         return resp
@@ -333,10 +334,11 @@ class WebDAVHandler:
             dirpath = path.rsplit("/", 1)[0]
             self.create_dirs(dirpath)
 
-        resp = requests.put(  # pylint: disable=missing-timeout
+        resp = requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
             data=data,
+            timeout=3000,
         )
 
         return resp
