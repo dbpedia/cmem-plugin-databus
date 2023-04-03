@@ -7,5 +7,3 @@ C
 .copier-answers.yml,3/f/3f3fdf873a54a824b8c535e22843724d4fae7416
 >
 pyproject.toml,5/d/5d07e7d72637aa0d59c89d381fe6dc4cf46e2491
-E
-tests/test_databus.py,4/6/46fbb1c9f26dd91e8a0b40bcfff62bc7ddf6e368

@@ -1,5 +1,5 @@
 """Utils for handling the DBpedia Databus"""
-
+from typing import Optional
 from dataclasses import dataclass
 from typing import Dict, Iterator, List
 from urllib.parse import quote
@@ -260,7 +260,7 @@ class WebDAVHandler:
         return bool(resp.status_code == 405)
 
     def create_dir(
-        self, path: str, session: requests.Session = None
+        self, path: str, session: Optional[requests.Session] = None
     ) -> requests.Response:
         """create directory"""
 

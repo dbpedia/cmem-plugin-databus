@@ -1,6 +1,5 @@
 """Plugin tests."""
-from unittest import skip
-
+import pytest
 from cmem_plugin_databus.utils import DatabusFileAutocomplete
 
 # def test_plugin():
@@ -11,7 +10,7 @@ from cmem_plugin_databus.utils import DatabusFileAutocomplete
 #     plugin.execute()
 
 
-@skip
+@pytest.mark.skip(reason="need to rewrite")
 def test_fetch_results():
     len_mappings = {
         "https://d8lr.tools.dbpedia.org": 2,
