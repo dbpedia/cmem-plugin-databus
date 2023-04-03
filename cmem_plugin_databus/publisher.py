@@ -32,10 +32,18 @@ LICENSES = OrderedDict(
         f"{NS}ArtisticLicense20": "Artistic License 2.0",
         f"{NS}AttributionAssuranceLicense": "Attribution Assurance License",
         f"{NS}BoostSoftwareLicense10": "Boost Software License 1.0",
-        f"{NS}CeaCnrsInriaLogicielLibreLicenseVersion21": "Cea Cnrs Inria Logiciel Libre License, version 2.1",
-        f"{NS}CommonDevelopmentAndDistributionLicense10": "Common Development and Distribution License 1.0",
-        f"{NS}CommonPublicAttributionLicenseVersion10": "Common Public Attribution License Version 1.0",
-        f"{NS}ComputerAssociatesTrustedOpenSourceLicense11": "Computer Associates Trusted Open Source License 1.1",
+        f"{NS}CeaCnrsInriaLogicielLibreLicenseVersion21": (
+            "Cea Cnrs Inria Logiciel Libre License, version 2.1"
+        ),
+        f"{NS}CommonDevelopmentAndDistributionLicense10": (
+            "Common Development and Distribution License 1.0"
+        ),
+        f"{NS}CommonPublicAttributionLicenseVersion10": (
+            "Common Public Attribution License Version 1.0"
+        ),
+        f"{NS}ComputerAssociatesTrustedOpenSourceLicense11": (
+            "Computer Associates Trusted Open Source License 1.1"
+        ),
     }
 )
 

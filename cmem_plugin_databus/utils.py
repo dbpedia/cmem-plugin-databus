@@ -1,7 +1,6 @@
 """Utils for handling the DBpedia Databus"""
-from typing import Optional
 from dataclasses import dataclass
-from typing import Dict, Iterator, List
+from typing import Dict, Iterator, List, Optional, Any
 from urllib.parse import quote
 
 import requests
@@ -194,7 +193,10 @@ class DatabusFileAutocomplete(StringParameterType):
     """Class for autocompleting identifiers from an arbitrary databus"""
 
     def autocomplete(
-        self, query_terms: list[str], context: PluginContext
+        self,
+        query_terms: list[str],
+        depend_on_parameter_values: list[Any],
+        context: PluginContext,
     ) -> list[Autocompletion]:
         return self.__transform_uris_to_autocompletion(
             self.fetch_results_by_uri(query_terms[0])
