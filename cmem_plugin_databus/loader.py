@@ -59,13 +59,15 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
     def execute(
         self, inputs=(), context: ExecutionContext = ExecutionContext()
     ) -> None:
-
         setup_cmempy_super_user_access()
         self.log.info(f"Loading file from {self.databus_file_id}")
 
         data: bytearray = bytearray()
         databus_file_resp = requests.get(
-            self.databus_file_id, allow_redirects=True, stream=True, timeout=3000,
+            self.databus_file_id,
+            allow_redirects=True,
+            stream=True,
+            timeout=3000,
         )
 
         if databus_file_resp.status_code > 400:

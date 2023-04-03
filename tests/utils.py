@@ -2,6 +2,7 @@
 import os
 
 import pytest
+
 # check for cmem environment and skip if not present
 from cmem.cmempy.api import get_token
 from cmem.cmempy.config import get_oauth_default_credentials

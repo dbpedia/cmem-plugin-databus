@@ -213,7 +213,7 @@ class DatabusFileAutocomplete(StringParameterType):
 
         endpoint = "https://" + parts[0] + "/sparql"
 
-        normalized_querystr = query_str[0: query_str.rfind("/")]
+        normalized_querystr = query_str[0 : query_str.rfind("/")]
 
         try:
             if len(parts) == 1:
