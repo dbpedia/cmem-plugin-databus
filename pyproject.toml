@@ -16,25 +16,25 @@ keywords = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-cmem-plugin-base = "^2.1.0"
+cmem-plugin-base = "^3.0.0"
 databusclient = "0.8"
 SPARQLWrapper = "^2.0.0"
 
-[tool.poetry.dev-dependencies]
-pytest = "^7.0"
-pytest-cov = "^3.0.0"
-black = "^22.1.0"
-bandit = "^1.7.2"
-pylint-junit = "^0.3.2"
-safety = "^2.3.1"
-genbadge = "^1.0.6"
-flake8-formatter-junit-xml = "^0.0.6"
-typed-ast = "^1.5.2"
-mypy = "^0.971"
-coverage = "^6.3.2"
-defusedxml = "^0.7.1"
-
 [tool.poetry.group.dev.dependencies]
+bandit = "^1.7.5"
+black = "^23.1.0"
+coverage = "^7.2.1"
+defusedxml = "^0.7.1"
+flake8-formatter-junit-xml = "^0.0.6"
+genbadge = "^1.1.0"
+mypy = "^1.1.1"
+pylint-junit = "^0.3.2"
+pytest = "^7.2.2"
+pytest-cov = "^4.0.0"
+pytest-memray = "^1.4.0"
+safety = "^1.10.3"
+typed-ast = "^1.5.4"
+wheel = "^0.38.4"
 types-requests = "^2.28.10"
 
 [build-system]
