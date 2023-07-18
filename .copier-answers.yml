@@ -1,9 +1,9 @@
 # Changes here will be overwritten by Copier
-_commit: v4.0.0
+_commit: v5.0.2
 _src_path: gh:eccenca/cmem-plugin-template
 author_mail: streitmatter@informatik.uni-leipzig.de
 author_name: Denis Streitmatter
-github_page: ''
+github_page: https://github.com/dbpedia/cmem-plugin-databus
 project_description: Load and publish datasets from a DBpedia databus service.
 project_slug: databus
 pypi: false
