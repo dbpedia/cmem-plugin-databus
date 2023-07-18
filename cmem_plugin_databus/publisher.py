@@ -26,26 +26,24 @@ NS = "http://dalicc.net/licenselibrary/"
 
 LICENSES = OrderedDict(
     {
-        f"{NS}AcademicFreeLicense30":
-            "Academic Free License 3.0",
-        f"{NS}AdaptivePublicLicense10":
-            "Adaptive Public License 1.0",
-        f"{NS}ApplePublicSourceLicense20":
-            "Apple Public Source License 2.0",
-        f"{NS}ArtisticLicense20":
-            "Artistic License 2.0",
-        f"{NS}AttributionAssuranceLicense":
-            "Attribution Assurance License",
-        f"{NS}BoostSoftwareLicense10":
-            "Boost Software License 1.0",
-        f"{NS}CeaCnrsInriaLogicielLibreLicenseVersion21":
-            "Cea Cnrs Inria Logiciel Libre License, version 2.1",
-        f"{NS}CommonDevelopmentAndDistributionLicense10":
-            "Common Development and Distribution License 1.0",
-        f"{NS}CommonPublicAttributionLicenseVersion10":
-            "Common Public Attribution License Version 1.0",
-        f"{NS}ComputerAssociatesTrustedOpenSourceLicense11":
-            "Computer Associates Trusted Open Source License 1.1",
+        f"{NS}AcademicFreeLicense30": "Academic Free License 3.0",
+        f"{NS}AdaptivePublicLicense10": "Adaptive Public License 1.0",
+        f"{NS}ApplePublicSourceLicense20": "Apple Public Source License 2.0",
+        f"{NS}ArtisticLicense20": "Artistic License 2.0",
+        f"{NS}AttributionAssuranceLicense": "Attribution Assurance License",
+        f"{NS}BoostSoftwareLicense10": "Boost Software License 1.0",
+        f"{NS}CeaCnrsInriaLogicielLibreLicenseVersion21": (
+            "Cea Cnrs Inria Logiciel Libre License, version 2.1"
+        ),
+        f"{NS}CommonDevelopmentAndDistributionLicense10": (
+            "Common Development and Distribution License 1.0"
+        ),
+        f"{NS}CommonPublicAttributionLicenseVersion10": (
+            "Common Public Attribution License Version 1.0"
+        ),
+        f"{NS}ComputerAssociatesTrustedOpenSourceLicense11": (
+            "Computer Associates Trusted Open Source License 1.1"
+        ),
     }
 )
 
@@ -151,7 +149,6 @@ class DatabusDeployPlugin(WorkflowPlugin):
     def __fetch_graph_metadata(
         self, context: ExecutionContext
     ) -> Tuple[str, str, str, str]:
-
         project_id = context.task.project_id()
         task_id = self.source_dataset
         metadata_dict = get_task(project=project_id, task=task_id)
@@ -200,11 +197,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
                 context
             )
         except MissingMetadataException as mm_exception:
-            context.report.update(
-                ExecutionReport(
-                    error=str(mm_exception)
-                )
-            )
+            context.report.update(ExecutionReport(error=str(mm_exception)))
             return
 
         databus_base, user, group, artifact = self.__get_identifier_from_artifact()

@@ -1,7 +1,6 @@
 """Utils for handling the DBpedia Databus"""
-
 from dataclasses import dataclass
-from typing import Dict, Iterator, List
+from typing import Dict, Iterator, List, Optional, Any
 from urllib.parse import quote
 
 import requests
@@ -194,7 +193,10 @@ class DatabusFileAutocomplete(StringParameterType):
     """Class for autocompleting identifiers from an arbitrary databus"""
 
     def autocomplete(
-        self, query_terms: list[str], context: PluginContext
+        self,
+        query_terms: list[str],
+        depend_on_parameter_values: list[Any],
+        context: PluginContext,
     ) -> list[Autocompletion]:
         return self.__transform_uris_to_autocompletion(
             self.fetch_results_by_uri(query_terms[0])
@@ -213,7 +215,7 @@ class DatabusFileAutocomplete(StringParameterType):
 
         endpoint = "https://" + parts[0] + "/sparql"
 
-        normalized_querystr = query_str[0: query_str.rfind("/")]
+        normalized_querystr = query_str[0 : query_str.rfind("/")]
 
         try:
             if len(parts) == 1:
@@ -260,7 +262,7 @@ class WebDAVHandler:
         return bool(resp.status_code == 405)
 
     def create_dir(
-        self, path: str, session: requests.Session = None
+        self, path: str, session: Optional[requests.Session] = None
     ) -> requests.Response:
         """create directory"""
 
@@ -315,11 +317,12 @@ class WebDAVHandler:
                 raise WebDAVException(responses[-1])
 
         # TODO: check why mypy has a problem with this
-        resp = requests.put(  # pylint: disable=missing-timeout
+        resp = requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
             data=context_data_generator,  # type: ignore
             stream=True,
+            timeout=3000,
         )
 
         return resp
@@ -333,10 +336,11 @@ class WebDAVHandler:
             dirpath = path.rsplit("/", 1)[0]
             self.create_dirs(dirpath)
 
-        resp = requests.put(  # pylint: disable=missing-timeout
+        resp = requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
             data=data,
+            timeout=3000,
         )
 
         return resp
