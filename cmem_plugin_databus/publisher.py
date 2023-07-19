@@ -1,4 +1,5 @@
 """Deploys a graph to the Databus"""
+import re
 import hashlib
 import json
 from collections import OrderedDict
@@ -48,6 +49,15 @@ LICENSES = OrderedDict(
 )
 
 
+def validate_dataset_artifact_uri(uri: str):
+    """validate dataset artifact uri"""
+    pattern = r"^https?://[^/]+/[^/]+/[^/]+/[^/]+/$"
+
+    if re.match(pattern, uri):
+        return True
+    return False
+
+
 @Plugin(
     label="Databus Deploy Plugin",
     description="Deploys a graph to the Databus",
@@ -63,7 +73,6 @@ The knowledge graph will be deployed as a turtle file to the Databus.
             description="The Databus Dataset Artifact for this specific dataset."
             " It conforms to following conventions: "
             "https://{DATABUS_BASE_URI}/{PUBLISHER}/{GROUP}/{ARTIFACT}/",
-            default_value="",
         ),
         PluginParameter(
             name="version",
@@ -124,6 +133,8 @@ class DatabusDeployPlugin(WorkflowPlugin):
         chunk_size: int,
     ) -> None:
         # pylint: disable=too-many-arguments
+        if validate_dataset_artifact_uri(dataset_artifact_uri):
+            raise ValueError("The specified dataset artifact uri is not valid")
         self.dataset_artifact_uri = dataset_artifact_uri
         databus_base, user, _, _ = self.__get_identifier_from_artifact()
         self.webdav_handler = WebDAVHandler(
