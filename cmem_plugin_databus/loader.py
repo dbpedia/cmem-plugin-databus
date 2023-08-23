@@ -23,15 +23,20 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
 """,
     parameters=[
         PluginParameter(
-            name="target_graph",
-            label="Target Graph",
-            description="Graph name to save the response from the Databus.",
-            param_type=DatasetParameterType(dataset_type="eccencaDataPlatform"),
+            name="databus_base_url",
+            label="Databus Base URL",
+            description="The URL of the Databus server",
         ),
         PluginParameter(
             name="databus_file_id",
             label="Databus File ID",
             description="The Databus file id of the file to download",
+        ),
+        PluginParameter(
+            name="target_graph",
+            label="Target Graph",
+            description="Graph name to save the response from the Databus.",
+            param_type=DatasetParameterType(dataset_type="eccencaDataPlatform"),
         ),
         PluginParameter(
             name="chunk_size",
@@ -46,8 +51,9 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
     """Implementation of loading one file from the Databus into a given dataset"""
 
     def __init__(
-        self, databus_file_id: str, target_graph: str, chunk_size: int
+        self, databus_base_url, databus_file_id: str, target_graph: str, chunk_size: int
     ) -> None:
+        self.databus_url = databus_base_url
         self.databus_file_id = databus_file_id
         self.target_graph = target_graph
         self.chunk_size = chunk_size
