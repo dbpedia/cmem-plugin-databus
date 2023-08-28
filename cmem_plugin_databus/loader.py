@@ -14,7 +14,7 @@ from cmem_plugin_base.dataintegration.utils import setup_cmempy_super_user_acces
 from cmem_plugin_databus.cmem_wrappers import post_streamed_bytes
 from cmem_plugin_databus.utils import (
     byte_iterator_context_update,
-    get_clock, fetch_api_search_result,
+    get_clock, fetch_api_search_result, fetch_facets_options,
 )
 
 
@@ -58,6 +58,48 @@ class DatabusSearch(StringParameterType):
         ]
 
 
+class FacetSearch(StringParameterType):
+    """Facet Type"""
+
+    autocompletion_depends_on_parameters: list[str] = [
+        "databus_base_url",
+        "databus_document"
+    ]
+
+    # auto complete for values
+    allow_only_autocompleted_values: bool = True
+    # auto complete for labels
+    autocomplete_value_with_labels: bool = False
+    #
+
+    def __init__(self, facet_option: str):
+        self.facet_option = facet_option
+
+    def autocomplete(
+        self,
+        query_terms: list[str],
+        depend_on_parameter_values: list[Any],
+        context: PluginContext,
+    ) -> list[Autocompletion]:
+
+        databus_base_url = depend_on_parameter_values[0]
+        databus_document = depend_on_parameter_values[1]
+        result = fetch_facets_options(
+            databus_base=databus_base_url,
+            url_parameters={
+                "type": "artifact",
+                "uri": databus_document
+            }
+        )
+        _format = result[self.facet_option]
+        return [
+            Autocompletion(
+                value=f"{_}",
+                label=f"{_}",
+            )for _ in _format
+        ]
+
+
 @Plugin(
     label="Simple Databus Loading Plugin",
     description="Loads a specfic file from the Databus to a local directory",
@@ -77,7 +119,13 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
             param_type=DatabusSearch(),
             default_value=""
         ),
-
+        PluginParameter(
+            name="artifact_format",
+            label="Format",
+            description="The format of databus artifact",
+            param_type=FacetSearch(facet_option="format"),
+            default_value=""
+        ),
         PluginParameter(
             name="databus_file_id",
             label="Databus File ID",
@@ -105,6 +153,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
             self,
             databus_base_url: str,
             databus_document: str,
+            artifact_format: str,
             databus_file_id: str,
             target_graph: str,
             chunk_size: int

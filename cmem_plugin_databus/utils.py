@@ -365,3 +365,24 @@ def byte_iterator_context_update(
             )
         )
         yield chunk
+
+
+def fetch_facets_options(
+        databus_base: str,
+        url_parameters: dict = None
+):
+    encoded_query_str = ""
+    if url_parameters:
+        encoded_query_str = urlencode(url_parameters)
+    headers = {
+        "Content-Type": "application/json"
+    }
+    request_uri = f"{databus_base}/app/utils/facets?{encoded_query_str}"
+    json_resp = requests.get(request_uri, headers=headers, timeout=30).json()
+
+    result = {
+        "version": json_resp["http://purl.org/dc/terms/hasVersion"]["values"],
+        "format": json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"]
+    }
+
+    return result
