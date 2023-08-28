@@ -1,7 +1,7 @@
 """Utils for handling the DBpedia Databus"""
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import requests
 from cmem_plugin_base.dataintegration.context import (
@@ -72,12 +72,15 @@ def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResul
 
 
 def fetch_api_search_result(
-    databus_base: str, query_str: str
+        databus_base: str,
+        url_parameters: dict = None
 ) -> List[DatabusSearchResult]:
     """Fetches Search Results."""
-    encoded_query_str = quote(query_str)
+    encoded_query_str = ""
+    if url_parameters:
+        encoded_query_str = urlencode(url_parameters)
 
-    request_uri = f"{databus_base}/api/search?query={encoded_query_str}"
+    request_uri = f"{databus_base}/api/search?{encoded_query_str}"
 
     json_resp = requests.get(request_uri, timeout=30).json()
 
