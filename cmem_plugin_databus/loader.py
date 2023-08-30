@@ -66,7 +66,7 @@ class FacetSearch(StringParameterType):
 
     autocompletion_depends_on_parameters: list[str] = [
         "databus_base_url",
-        "databus_document"
+        "databus_artifact"
     ]
 
     # auto complete for values
@@ -107,7 +107,7 @@ class DatabusFile(StringParameterType):
     """Class for DatabusFile"""
     autocompletion_depends_on_parameters: list[str] = [
         "databus_base_url",
-        "databus_document",
+        "databus_artifact",
         "artifact_format",
         "artifact_version"
     ]
@@ -154,11 +154,11 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
         PluginParameter(
             name="databus_base_url",
             label="Databus Base URL",
-            description="The URL of the Databus server",
+            description="The URL of the databus server",
         ),
         PluginParameter(
-            name="databus_document",
-            label="Databus Document",
+            name="databus_artifact",
+            label="Artifact",
             description="The name of databus artifact",
             param_type=DatabusSearch(),
             default_value=""
@@ -205,7 +205,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
     def __init__(
             self,
             databus_base_url: str,
-            databus_document: str,
+            databus_artifact: str,
             artifact_format: str,
             artifact_version: str,
             databus_file_id: str,
@@ -217,7 +217,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         self.target_graph = target_graph
         self.chunk_size = chunk_size
         # to get rid of unused-argument
-        _ = databus_document
+        _ = databus_artifact
         _ = artifact_format
         _ = artifact_version
 
