@@ -1,8 +1,7 @@
 """Utils for handling the DBpedia Databus"""
-import json
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Any
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 import requests
 from cmem_plugin_base.dataintegration.context import (
@@ -74,7 +73,7 @@ def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResul
 
 def fetch_api_search_result(
         databus_base: str,
-        url_parameters: dict = None
+        url_parameters: Optional[dict] = None
 ) -> List[DatabusSearchResult]:
     """Fetches Search Results."""
     encoded_query_str = ""
@@ -370,8 +369,9 @@ def byte_iterator_context_update(
 
 def fetch_facets_options(
         databus_base: str,
-        url_parameters: dict = None
+        url_parameters: Optional[dict] = None
 ):
+    """Fetch facet options for a given document"""
     encoded_query_str = ""
     if url_parameters:
         encoded_query_str = urlencode(url_parameters)
@@ -383,32 +383,37 @@ def fetch_facets_options(
 
     result = {
         "version": json_resp["http://purl.org/dc/terms/hasVersion"]["values"],
-        "format": json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"]
+        "format":
+            json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"]
     }
 
     return result
 
 
 def fetch_databus_files(endpoint: str, artifact: str, version: str, file_format: str):
+    """fetch databus file name based of artifact, version and format on a given
+    databus instance"""
+
     query = f"""PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX dcat:   <http://www.w3.org/ns/dcat#>
 PREFIX dct:    <http://purl.org/dc/terms/>
 PREFIX dcv: <https://dataid.dbpedia.org/databus-cv#>
 PREFIX databus: <https://dataid.dbpedia.org/databus#>
-SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression (GROUP_CONCAT(DISTINCT ?var; SEPARATOR=', ') AS ?variant) ?preview WHERE
+SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression
+        (GROUP_CONCAT(DISTINCT ?var; SEPARATOR=', ') AS ?variant) ?preview WHERE
 {{
     GRAPH ?g
     {{
         ?dataset databus:artifact <{artifact}> .
         {{
             ?distribution dct:hasVersion ?version {{
-            SELECT (?v as ?version) {{ 
-                GRAPH ?g2 {{ 
-                    ?dataset databus:artifact <{artifact}> . 
-                        ?dataset dct:hasVersion ?v . 
+            SELECT (?v as ?version) {{
+                GRAPH ?g2 {{
+                    ?dataset databus:artifact <{artifact}> .
+                        ?dataset dct:hasVersion ?v .
                     }}
-                }} ORDER BY DESC (STR(?version)) LIMIT 1 
+                }} ORDER BY DESC (STR(?version)) LIMIT 1
             }}
         }}
         UNION
@@ -426,7 +431,8 @@ SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression (GR
         ?dataset dct:license ?license .
         ?dataset dct:hasVersion ?version .
         ?dataset databus:artifact ?artifact .
-        OPTIONAL {{ ?distribution ?p ?var. ?p rdfs:subPropertyOf databus:contentVariant . }}
+        OPTIONAL
+        {{ ?distribution ?p ?var. ?p rdfs:subPropertyOf databus:contentVariant . }}
         OPTIONAL {{ ?distribution dcat:byteSize ?size . }}
     }}
 }}
@@ -438,4 +444,6 @@ GROUP BY ?file ?version ?artifact ?license ?size ?format ?compression ?preview""
     sparql_service.setReturnFormat(JSON)
 
     query_results = sparql_service.query().convert()
-    return query_results["results"]["bindings"]
+    # just to make mypy stop complaining
+    assert isinstance(query_results, dict)  # nosec
+    return query_results["results"]["bindings"]  # nosec

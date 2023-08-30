@@ -3,8 +3,11 @@ from typing import Any
 
 import requests
 from cmem.cmempy.workspace.tasks import get_task
-from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport, \
+from cmem_plugin_base.dataintegration.context import (
+    ExecutionContext,
+    ExecutionReport,
     PluginContext
+)
 from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
@@ -26,7 +29,7 @@ class DatabusSearch(StringParameterType):
     # auto complete for values
     allow_only_autocompleted_values: bool = True
     # auto complete for labels
-    autocomplete_value_with_labels: bool = False
+    autocomplete_value_with_labels: bool = True
 
     def autocomplete(
         self,
@@ -101,6 +104,7 @@ class FacetSearch(StringParameterType):
 
 
 class DatabusFile(StringParameterType):
+    """Class for DatabusFile"""
     autocompletion_depends_on_parameters: list[str] = [
         "databus_base_url",
         "databus_document",
@@ -132,7 +136,10 @@ class DatabusFile(StringParameterType):
         return [
             Autocompletion(
                 value=f"{_['file']['value']}",
-                label=f"{_['version']['value']}:{_['variant']['value']}:{_['format']['value']}:{_['compression']['value']}",
+                label=f"{_['version']['value']}:"
+                      f"{_['variant']['value']}:"
+                      f"{_['format']['value']}:"
+                      f"{_['compression']['value']}",
             ) for _ in result
         ]
 
@@ -194,6 +201,7 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
 class SimpleDatabusLoadingPlugin(WorkflowPlugin):
     """Implementation of loading one file from the Databus into a given dataset"""
 
+    # pylint: disable=too-many-arguments
     def __init__(
             self,
             databus_base_url: str,
@@ -208,6 +216,10 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         self.databus_file_id = databus_file_id
         self.target_graph = target_graph
         self.chunk_size = chunk_size
+        # to get rid of unused-argument
+        _ = databus_document
+        _ = artifact_format
+        _ = artifact_version
 
     def __get_graph_uri(self, context: ExecutionContext):
         task_info = get_task(project=context.task.project_id(), task=self.target_graph)
