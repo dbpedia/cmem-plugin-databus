@@ -14,7 +14,7 @@ from cmem_plugin_base.dataintegration.utils import setup_cmempy_super_user_acces
 from cmem_plugin_databus.cmem_wrappers import post_streamed_bytes
 from cmem_plugin_databus.utils import (
     byte_iterator_context_update,
-    get_clock, fetch_api_search_result, fetch_facets_options,
+    get_clock, fetch_api_search_result, fetch_facets_options, fetch_databus_files,
 )
 
 
@@ -100,6 +100,43 @@ class FacetSearch(StringParameterType):
         ]
 
 
+class DatabusFile(StringParameterType):
+    autocompletion_depends_on_parameters: list[str] = [
+        "databus_base_url",
+        "databus_document",
+        "artifact_format",
+        "artifact_version"
+    ]
+
+    # auto complete for values
+    allow_only_autocompleted_values: bool = True
+    # auto complete for labels
+    autocomplete_value_with_labels: bool = False
+
+    def autocomplete(
+            self,
+            query_terms: list[str],
+            depend_on_parameter_values: list[Any],
+            context: PluginContext,
+    ) -> list[Autocompletion]:
+        databus_base_url = depend_on_parameter_values[0]
+        databus_document = depend_on_parameter_values[1]
+        artifact_format = depend_on_parameter_values[2]
+        artifact_version = depend_on_parameter_values[3]
+        result = fetch_databus_files(
+            endpoint=databus_base_url,
+            artifact=databus_document,
+            version=artifact_version,
+            file_format=artifact_format
+        )
+        return [
+            Autocompletion(
+                value=f"{_['file']['value']}",
+                label=f"{_['version']['value']}:{_['variant']['value']}:{_['format']['value']}:{_['compression']['value']}",
+            ) for _ in result
+        ]
+
+
 @Plugin(
     label="Simple Databus Loading Plugin",
     description="Loads a specfic file from the Databus to a local directory",
@@ -137,6 +174,7 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
             name="databus_file_id",
             label="Databus File ID",
             description="The Databus file id of the file to download",
+            param_type=DatabusFile()
         ),
         PluginParameter(
             name="target_graph",
