@@ -127,6 +127,13 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
             default_value=""
         ),
         PluginParameter(
+            name="artifact_version",
+            label="Version",
+            description="The version of databus artifact",
+            param_type=FacetSearch(facet_option="version"),
+            default_value=""
+        ),
+        PluginParameter(
             name="databus_file_id",
             label="Databus File ID",
             description="The Databus file id of the file to download",
@@ -154,6 +161,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
             databus_base_url: str,
             databus_document: str,
             artifact_format: str,
+            artifact_version: str,
             databus_file_id: str,
             target_graph: str,
             chunk_size: int
