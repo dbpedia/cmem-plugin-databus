@@ -393,7 +393,6 @@ def fetch_facets_options(
 def fetch_databus_files(endpoint: str, artifact: str, version: str, file_format: str):
     """fetch databus file name based of artifact, version and format on a given
     databus instance"""
-
     query = f"""PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX dcat:   <http://www.w3.org/ns/dcat#>
@@ -401,29 +400,14 @@ PREFIX dct:    <http://purl.org/dc/terms/>
 PREFIX dcv: <https://dataid.dbpedia.org/databus-cv#>
 PREFIX databus: <https://dataid.dbpedia.org/databus#>
 SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression
-        (GROUP_CONCAT(DISTINCT ?var; SEPARATOR=', ') AS ?variant) ?preview WHERE
+ (GROUP_CONCAT(DISTINCT ?var; SEPARATOR=', ') AS ?variant) ?preview WHERE
 {{
     GRAPH ?g
     {{
         ?dataset databus:artifact <{artifact}> .
-        {{
-            ?distribution dct:hasVersion ?version {{
-            SELECT (?v as ?version) {{
-                GRAPH ?g2 {{
-                    ?dataset databus:artifact <{artifact}> .
-                        ?dataset dct:hasVersion ?v .
-                    }}
-                }} ORDER BY DESC (STR(?version)) LIMIT 1
-            }}
-        }}
-        UNION
         {{ ?distribution <http://purl.org/dc/terms/hasVersion> '{version}' . }}
-        {{
-            ?distribution <https://dataid.dbpedia.org/databus#formatExtension> ?c0 .
-            VALUES ?c0 {{
-                '{file_format}'
-            }}
-        }}
+        {{ ?distribution
+         <https://dataid.dbpedia.org/databus#formatExtension> '{file_format}' . }}
         ?dataset dcat:distribution ?distribution .
         ?distribution databus:file ?file .
         ?distribution databus:formatExtension ?format .
@@ -432,7 +416,7 @@ SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression
         ?dataset dct:hasVersion ?version .
         ?dataset databus:artifact ?artifact .
         OPTIONAL
-        {{ ?distribution ?p ?var. ?p rdfs:subPropertyOf databus:contentVariant . }}
+         {{ ?distribution ?p ?var. ?p rdfs:subPropertyOf databus:contentVariant . }}
         OPTIONAL {{ ?distribution dcat:byteSize ?size . }}
     }}
 }}
