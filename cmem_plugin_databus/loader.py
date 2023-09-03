@@ -11,15 +11,12 @@ from cmem_plugin_base.dataintegration.context import (
     PluginContext
 )
 from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
-from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
 from cmem_plugin_base.dataintegration.types import StringParameterType, Autocompletion
 from cmem_plugin_base.dataintegration.utils import setup_cmempy_user_access
 
-from cmem_plugin_databus.cmem_wrappers import post_streamed_bytes
 from cmem_plugin_databus.utils import (
-    byte_iterator_context_update,
-    get_clock, fetch_api_search_result, fetch_facets_options, fetch_databus_files,
+    fetch_api_search_result, fetch_facets_options, fetch_databus_files,
 )
 
 
@@ -194,7 +191,6 @@ class ResponseStream:
         pass
 
 
-
 @Plugin(
     label="Simple Databus Loading Plugin",
     description="Loads a specfic file from the Databus to a local directory",
@@ -282,7 +278,6 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         setup_cmempy_user_access(context.user)
         self.log.info(f"Loading file from {self.databus_file_id}")
 
-        data: bytearray = bytearray()
         databus_file_resp = requests.get(
             self.databus_file_id,
             allow_redirects=True,
