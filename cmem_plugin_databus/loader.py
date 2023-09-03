@@ -4,7 +4,6 @@ from typing import Any, Optional
 import requests
 from cmem.cmempy.workspace.projects.resources import get_resources
 from cmem.cmempy.workspace.projects.resources.resource import create_resource
-from cmem.cmempy.workspace.tasks import get_task
 from cmem_plugin_base.dataintegration.context import (
     ExecutionContext,
     ExecutionReport,
@@ -103,6 +102,7 @@ class FacetSearch(StringParameterType):
 
 
 class ResourceParameterType(StringParameterType):
+    """Resource parameter type."""
     allow_only_autocompleted_values: bool = True
 
     autocomplete_value_with_labels: bool = True
@@ -171,24 +171,25 @@ class DatabusFile(StringParameterType):
 
 
 class ResponseStream:
-    """A Base class for producing messages from Dataset to a Kafka topic."""
+    """A context manager for streaming the content of an HTTP response in chunks.
+
+    This class allows you to stream the content of an HTTP response in manageable chunks
+    without loading the entire response into memory at once. It provides an iterable
+    interface to read the response content piece by piece."""
 
     def __enter__(self):
-        return self.read()
+        return self._read()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        pass
 
     def __init__(self, response, chunk_size=1048576):
         self.response = response
         self.chunk_size = chunk_size
 
-    def read(self):
+    def _read(self):
         for _ in self.response.iter_content(chunk_size=self.chunk_size):
             yield _
-
-    def close(self):
-        pass
 
 
 @Plugin(
@@ -267,10 +268,6 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         _ = databus_artifact
         _ = artifact_format
         _ = artifact_version
-
-    def __get_graph_uri(self, context: ExecutionContext):
-        task_info = get_task(project=context.task.project_id(), task=self.target_file)
-        return task_info["data"]["parameters"]["graph"]["value"]
 
     def execute(
         self, inputs=(), context: ExecutionContext = ExecutionContext()
