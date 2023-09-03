@@ -1,7 +1,9 @@
 """Plugin for loading one file from the databus and write it ino a dataset"""
-from typing import Any
+from typing import Any, Optional
 
 import requests
+from cmem.cmempy.workspace.projects.resources import get_resources
+from cmem.cmempy.workspace.projects.resources.resource import create_resource
 from cmem.cmempy.workspace.tasks import get_task
 from cmem_plugin_base.dataintegration.context import (
     ExecutionContext,
@@ -103,6 +105,33 @@ class FacetSearch(StringParameterType):
         ]
 
 
+class ResourceParameterType(StringParameterType):
+    allow_only_autocompleted_values: bool = True
+
+    autocomplete_value_with_labels: bool = True
+
+    file_type: Optional[str] = None
+
+    def __init__(self, file_type: Optional[str] = None):
+        """Dataset parameter type."""
+        self.file_type = file_type
+
+    def autocomplete(
+            self,
+            query_terms: list[str],
+            depend_on_parameter_values: list[Any],
+            context: PluginContext,
+    ) -> list[Autocompletion]:
+        setup_cmempy_user_access(context.user)
+        resources = get_resources(context.project_id)
+        return [
+            Autocompletion(
+                value=f"{_['fullPath']}",
+                label=f"{_['name']}",
+            ) for _ in resources
+        ]
+
+
 class DatabusFile(StringParameterType):
     """Class for DatabusFile"""
     autocompletion_depends_on_parameters: list[str] = [
@@ -184,10 +213,10 @@ This CMEM task loads a file from the defined Databus to a RDF dataset.
             param_type=DatabusFile()
         ),
         PluginParameter(
-            name="target_graph",
-            label="Target Graph",
-            description="Graph name to save the response from the Databus.",
-            param_type=DatasetParameterType(dataset_type="eccencaDataPlatform"),
+            name="target_file",
+            label="File",
+            description="File name to save the response from the Databus.",
+            param_type=ResourceParameterType(),
         ),
         PluginParameter(
             name="chunk_size",
@@ -209,12 +238,12 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
             artifact_format: str,
             artifact_version: str,
             databus_file_id: str,
-            target_graph: str,
+            target_file: str,
             chunk_size: int
     ) -> None:
         self.databus_url = databus_base_url
         self.databus_file_id = databus_file_id
-        self.target_graph = target_graph
+        self.target_file = target_file
         self.chunk_size = chunk_size
         # to get rid of unused-argument
         _ = databus_artifact
@@ -222,7 +251,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         _ = artifact_version
 
     def __get_graph_uri(self, context: ExecutionContext):
-        task_info = get_task(project=context.task.project_id(), task=self.target_graph)
+        task_info = get_task(project=context.task.project_id(), task=self.target_file)
         return task_info["data"]["parameters"]["graph"]["value"]
 
     def execute(
