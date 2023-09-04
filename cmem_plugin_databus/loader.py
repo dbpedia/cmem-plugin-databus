@@ -85,14 +85,14 @@ class FacetSearch(StringParameterType):
 
         databus_base_url = depend_on_parameter_values[0]
         databus_document = depend_on_parameter_values[1]
-        result = fetch_facets_options(
+        facet_options = fetch_facets_options(
             databus_base=databus_base_url,
             url_parameters={
                 "type": "artifact",
                 "uri": databus_document
             }
         )
-        _format = result[self.facet_option]
+        _format = facet_options[self.facet_option]
         result = [
                 Autocompletion(
                     value=f"{_}",
@@ -100,9 +100,10 @@ class FacetSearch(StringParameterType):
                 ) for _ in _format
             ]
         if query_terms:
-            return [ _ for _ in result if _.value.find(query_terms[0]) > -1 ]
+            result = [_ for _ in result if _.value.find(query_terms[0]) > -1]
 
         return result
+
 
 class ResourceParameterType(StringParameterType):
     """Resource parameter type."""
@@ -131,7 +132,7 @@ class ResourceParameterType(StringParameterType):
             ) for _ in resources
         ]
         if query_terms:
-            result = [ _ for _ in result if _.value.find(query_terms[0]) > -1 ]
+            result = [_ for _ in result if _.value.find(query_terms[0]) > -1]
 
         if not result and query_terms:
             result = [
