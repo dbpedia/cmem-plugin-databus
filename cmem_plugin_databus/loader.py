@@ -93,13 +93,16 @@ class FacetSearch(StringParameterType):
             }
         )
         _format = result[self.facet_option]
-        return [
-            Autocompletion(
-                value=f"{_}",
-                label=f"{_}",
-            )for _ in _format
-        ]
+        result = [
+                Autocompletion(
+                    value=f"{_}",
+                    label=f"{_}",
+                ) for _ in _format
+            ]
+        if query_terms:
+            return [ _ for _ in result if _.value.find(query_terms[0]) > -1 ]
 
+        return result
 
 class ResourceParameterType(StringParameterType):
     """Resource parameter type."""
@@ -127,19 +130,16 @@ class ResourceParameterType(StringParameterType):
                 label=f"{_['name']}",
             ) for _ in resources
         ]
-        append_query_terms_to_list = True
         if query_terms:
-            for resource in resources:
-                if resource['fullPath'].lower().startswith(query_terms[0].lower()):
-                    append_query_terms_to_list = False
-        if append_query_terms_to_list and query_terms:
-            result.insert(
-                0,
+            result = [ _ for _ in result if _.value.find(query_terms[0]) > -1 ]
+
+        if not result and query_terms:
+            result = [
                 Autocompletion(
                     value=f"{query_terms[0]}",
                     label=f"{query_terms[0]} (New resource)"
                 )
-            )
+            ]
 
         return result
 
