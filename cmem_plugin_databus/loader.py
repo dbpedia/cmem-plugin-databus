@@ -121,12 +121,27 @@ class ResourceParameterType(StringParameterType):
     ) -> list[Autocompletion]:
         setup_cmempy_user_access(context.user)
         resources = get_resources(context.project_id)
-        return [
+        result = [
             Autocompletion(
                 value=f"{_['fullPath']}",
                 label=f"{_['name']}",
             ) for _ in resources
         ]
+        append_query_terms_to_list = True
+        if query_terms:
+            for resource in resources:
+                if resource['fullPath'].lower().startswith(query_terms[0].lower()):
+                    append_query_terms_to_list = False
+        if append_query_terms_to_list and query_terms:
+            result.insert(
+                0,
+                Autocompletion(
+                    value=f"{query_terms[0]}",
+                    label=f"{query_terms[0]} (New resource)"
+                )
+            )
+
+        return result
 
 
 class DatabusFile(StringParameterType):
