@@ -274,7 +274,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
             artifact_version: str,
             databus_file_id: str,
             target_file: str,
-            chunk_size: int
+            chunk_size: int = 1048576
     ) -> None:
         self.databus_url = databus_base_url
         self.databus_file_id = databus_file_id
