@@ -15,7 +15,7 @@ DATABUS_DOCUMENT = f"{DATABUS_BASE_URL}/cmempydeveloper/CorporateMemory/Document
 DOCUMENT_VERSION = "23.01"
 DOCUMENT_FORMAT = "md"
 DATABUS_FILE = (
-    "https://databus.dbpedia.org/cmempydeveloper/CorporateMemory/"
+    f"{DATABUS_BASE_URL}/cmempydeveloper/CorporateMemory/"
     f"Documentation/{DOCUMENT_VERSION}/Documentation.md"
 )
 
