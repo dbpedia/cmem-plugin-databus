@@ -93,6 +93,11 @@ class FacetSearch(StringParameterType):
             }
         )
         _format = facet_options[self.facet_option]
+        if self.facet_option == "version":
+            _format = sorted(_format, reverse=True)
+        else:
+            _format = sorted(_format)
+
         result = [
                 Autocompletion(
                     value=f"{_}",
@@ -216,71 +221,75 @@ class ResponseStream:
 
 
 @Plugin(
-    label="Simple Databus Loading Plugin",
-    description="Loads a specfic file from the Databus to a local directory",
-    documentation="""
-This CMEM task loads a file from the defined Databus to a RDF dataset.
-""",
+    label="Download File from a DBpedia Databus",
+    description="Download a file artifact listed in a Databus Catalog.",
+    documentation="This workflow task allows for selecting and downloading a file"
+                  " artifact from a DBpedia Databus to a Corporate Memory dataset"
+                  " resource.",
     parameters=[
         PluginParameter(
             name="databus_base_url",
             label="Databus Base URL",
-            description="The URL of the databus server",
+            description="The deployment URL of a Databus service,"
+                        " e.g. https://databus.dbpedia.org/",
         ),
         PluginParameter(
             name="databus_artifact",
-            label="Artifact",
-            description="The name of databus artifact",
+            label="Artifact URL",
+            description="The URL of the Databus artifact. You can search by name.",
             param_type=DatabusSearch(),
             default_value=""
         ),
         PluginParameter(
             name="artifact_format",
             label="Format",
-            description="The format of databus artifact",
+            description="The format of the Databus artifact. You can select the"
+                        " format, after you have a proper Artifact URL selected.",
             param_type=FacetSearch(facet_option="format"),
             default_value=""
         ),
         PluginParameter(
             name="artifact_version",
             label="Version",
-            description="The version of databus artifact",
+            description="The version of Databus artifact. You can select the"
+                        " version, after you have a proper Artifact URL selected.",
             param_type=FacetSearch(facet_option="version"),
             default_value=""
         ),
         PluginParameter(
             name="databus_file_id",
             label="Databus File ID",
-            description="The Databus file id of the file to download",
+            description="The Databus file ID of the file to download.",
             param_type=DatabusFile()
         ),
         PluginParameter(
             name="target_file",
             label="File",
-            description="File name to save the response from the Databus.",
+            description="File name where you want to  save the dowloaded file"
+                        " from the Databus.",
             param_type=ResourceParameterType(),
         ),
         PluginParameter(
             name="chunk_size",
             label="Chunk Size",
-            description="Chunksize during up/downloading the graph",
+            description="Chunksize during up/downloading the graph.",
             default_value=1048576,
             advanced=True,
         ),
     ],
 )
 class SimpleDatabusLoadingPlugin(WorkflowPlugin):
-    """Implementation of loading one file from the Databus into a given dataset"""
+    """Implementation of downloading one file from the Databus to a dataset resource."""
 
     # pylint: disable=too-many-arguments
     def __init__(
             self,
-            databus_base_url: str,
-            databus_artifact: str,
-            artifact_format: str,
-            artifact_version: str,
-            databus_file_id: str,
-            target_file: str,
+            databus_base_url: str = "https://databus.dbpedia.org/",
+            databus_artifact: str = "",
+            artifact_format: str = "",
+            artifact_version: str = "",
+            databus_file_id: str = "",
+            target_file: str = "",
             chunk_size: int = 1048576
     ) -> None:
         self.databus_url = databus_base_url
