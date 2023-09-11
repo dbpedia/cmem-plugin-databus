@@ -175,15 +175,22 @@ class DatabusFile(StringParameterType):
             version=artifact_version,
             file_format=artifact_format
         )
-        return [
-            Autocompletion(
-                value=f"{_['file']['value']}",
-                label=f"{_['version']['value']}:"
-                      f"{_['variant']['value']}:"
-                      f"{_['format']['value']}:"
-                      f"{_['compression']['value']}",
-            ) for _ in result
-        ]
+        finalized_result = []
+        for _ in result:
+            variant = _["variant"]["value"] \
+                if not _["variant"]["value"].startswith(", ") \
+                else _["variant"]["value"].replace(", ", "", 1)
+            finalized_result.append(
+                Autocompletion(
+                    value=f"{_['file']['value']}",
+                    label=f'Version={_["version"]["value"]}, '
+                          f'Variant={variant}, '
+                          f'Format={_["format"]["value"]}, '
+                          f'Compression={_["compression"]["value"]}, '
+                          f'Size={_["size"]["value"]} Bytes',
+                )
+            )
+        return finalized_result
 
 
 class ResponseStream:
