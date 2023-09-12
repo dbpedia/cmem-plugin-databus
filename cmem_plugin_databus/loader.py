@@ -222,7 +222,7 @@ class ResponseStream:
 
 @Plugin(
     label="Download File from a DBpedia Databus",
-    plugin_id="cmem-plugin-databus-Download",
+    plugin_id="cmem_plugin_databus-Download",
     description="Download a file artifact listed in a Databus Catalog.",
     documentation="This workflow task allows for selecting and downloading a file"
                   " artifact from a DBpedia Databus to a Corporate Memory dataset"
