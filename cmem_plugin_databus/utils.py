@@ -1,7 +1,7 @@
 """Utils for handling the DBpedia Databus"""
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Any
-from urllib.parse import quote
+from urllib.parse import urlencode
 
 import requests
 from cmem_plugin_base.dataintegration.context import (
@@ -72,12 +72,15 @@ def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResul
 
 
 def fetch_api_search_result(
-    databus_base: str, query_str: str
+        databus_base: str,
+        url_parameters: Optional[dict] = None
 ) -> List[DatabusSearchResult]:
     """Fetches Search Results."""
-    encoded_query_str = quote(query_str)
+    encoded_query_str = ""
+    if url_parameters:
+        encoded_query_str = urlencode(url_parameters)
 
-    request_uri = f"{databus_base}/api/search?query={encoded_query_str}"
+    request_uri = f"{databus_base}/api/search?{encoded_query_str}"
 
     json_resp = requests.get(request_uri, timeout=30).json()
 
@@ -362,3 +365,69 @@ def byte_iterator_context_update(
             )
         )
         yield chunk
+
+
+def fetch_facets_options(
+        databus_base: str,
+        url_parameters: Optional[dict] = None
+):
+    """Fetch facet options for a given document"""
+    encoded_query_str = ""
+    if url_parameters:
+        encoded_query_str = urlencode(url_parameters)
+    headers = {
+        "Content-Type": "application/json"
+    }
+    request_uri = f"{databus_base}/app/utils/facets?{encoded_query_str}"
+    json_resp = requests.get(request_uri, headers=headers, timeout=30).json()
+
+    result = {
+        "version": json_resp["http://purl.org/dc/terms/hasVersion"]["values"],
+        "format":
+            json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"]
+    }
+
+    return result
+
+
+def fetch_databus_files(endpoint: str, artifact: str, version: str, file_format: str):
+    """fetch databus file name based of artifact, version and format on a given
+    databus instance"""
+    query = f"""PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX dcat:   <http://www.w3.org/ns/dcat#>
+PREFIX dct:    <http://purl.org/dc/terms/>
+PREFIX dcv: <https://dataid.dbpedia.org/databus-cv#>
+PREFIX databus: <https://dataid.dbpedia.org/databus#>
+SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression
+ (GROUP_CONCAT(DISTINCT ?var; SEPARATOR=', ') AS ?variant) ?preview WHERE
+{{
+    GRAPH ?g
+    {{
+        ?dataset databus:artifact <{artifact}> .
+        {{ ?distribution <http://purl.org/dc/terms/hasVersion> '{version}' . }}
+        {{ ?distribution
+         <https://dataid.dbpedia.org/databus#formatExtension> '{file_format}' . }}
+        ?dataset dcat:distribution ?distribution .
+        ?distribution databus:file ?file .
+        ?distribution databus:formatExtension ?format .
+        ?distribution databus:compression ?compression .
+        ?dataset dct:license ?license .
+        ?dataset dct:hasVersion ?version .
+        ?dataset databus:artifact ?artifact .
+        OPTIONAL
+         {{ ?distribution ?p ?var. ?p rdfs:subPropertyOf databus:contentVariant . }}
+        OPTIONAL {{ ?distribution dcat:byteSize ?size . }}
+    }}
+}}
+GROUP BY ?file ?version ?artifact ?license ?size ?format ?compression ?preview"""
+
+    endpoint = endpoint+"/sparql"
+    sparql_service = SPARQLWrapper(endpoint)
+    sparql_service.setQuery(query)
+    sparql_service.setReturnFormat(JSON)
+
+    query_results = sparql_service.query().convert()
+    # just to make mypy stop complaining
+    assert isinstance(query_results, dict)  # nosec
+    return query_results["results"]["bindings"]  # nosec
