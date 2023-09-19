@@ -266,7 +266,7 @@ class ResponseStream:
         PluginParameter(
             name="target_file",
             label="File",
-            description="File name where you want to  save the dowloaded file"
+            description="File name where you want to save the dowloaded file"
                         " from the Databus.",
             param_type=ResourceParameterType(),
         ),
@@ -306,7 +306,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         self, inputs=(), context: ExecutionContext = ExecutionContext()
     ) -> None:
         setup_cmempy_user_access(context.user)
-        self.log.info(f"Loading file from {self.databus_file_id}")
+        self.log.info(f"Downloading file from {self.databus_file_id}")
 
         databus_file_resp = requests.get(
             self.databus_file_id,
@@ -330,11 +330,16 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
             replace=True
         )
         if upload_response.status_code < 400:
-            context.report.update(ExecutionReport(operation_desc="Upload Successful ✓"))
+            context.report.update(
+                ExecutionReport(
+                    operation_desc="Download Successful ✓",
+                    entity_count=1
+                )
+            )
         else:
             context.report.update(
                 ExecutionReport(
-                    operation_desc="Upload Failed ❌",
+                    operation_desc="Download Failed ❌",
                     error=upload_response.text
                 )
             )

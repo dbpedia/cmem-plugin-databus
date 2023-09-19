@@ -59,8 +59,8 @@ def validate_dataset_artifact_uri(uri: str):
 
 
 @Plugin(
-    label="Databus Deploy Plugin",
-    description="Deploys a graph to the Databus",
+    label="Publish to a DBpedia Databus",
+    description="Deploys a graph to a Databus",
     documentation="""
 This CMEM task deploys a knowledge graph to the defined Databus Dataset.
 
