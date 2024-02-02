@@ -68,4 +68,3 @@ class TestExecutionContext(ExecutionContext):
         self.report = ReportContext()
         self.task = TestTaskContext(project_id=project_id, task_id=task_id)
         self.user = TestUserContext()
-

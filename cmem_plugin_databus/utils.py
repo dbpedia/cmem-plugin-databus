@@ -1,6 +1,7 @@
 """Utils for handling the DBpedia Databus"""
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Dict, Iterator, List, Optional, Any
+from typing import Any, Optional
 from urllib.parse import urlencode
 
 import requests
@@ -35,7 +36,7 @@ class MissingMetadataException(Exception):
 
 
 def get_clock(counter: int) -> str:
-    """returns a clock symbol"""
+    """Returns a clock symbol"""
     clock = {
         0: "🕛",
         1: "🕐",
@@ -61,8 +62,8 @@ class DatabusSearchResult:
     resource: str
 
 
-def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResult:
-    """creates a DatabusSearchResult from a json_dict"""
+def result_from_json_dict(json_dict: dict[str, list[str]]) -> DatabusSearchResult:
+    """Creates a DatabusSearchResult from a json_dict"""
     return DatabusSearchResult(
         json_dict["typeName"][0],
         float(json_dict["score"][0]),
@@ -72,9 +73,8 @@ def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResul
 
 
 def fetch_api_search_result(
-        databus_base: str,
-        url_parameters: Optional[dict] = None
-) -> List[DatabusSearchResult]:
+    databus_base: str, url_parameters: Optional[dict] = None
+) -> list[DatabusSearchResult]:
     """Fetches Search Results."""
     encoded_query_str = ""
     if url_parameters:
@@ -92,9 +92,10 @@ def fetch_api_search_result(
     return result
 
 
-def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> List[str]:
+def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> list[str]:
     """Sends a query to the given endpoint and collects all results
-    of a key in a list"""
+    of a key in a list
+    """
     sparql_service = SPARQLWrapper(endpoint)
     sparql_service.setQuery(query)
     sparql_service.setReturnFormat(JSON)
@@ -117,9 +118,10 @@ def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> List[str]:
     return results
 
 
-def load_accounts(sparql_endpoint: str) -> List[str]:
+def load_accounts(sparql_endpoint: str) -> list[str]:
     """Load available publishers from the databus.
-    Only accounts, not all publishers defined"""
+    Only accounts, not all publishers defined
+    """
     query = """PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -131,7 +133,7 @@ SELECT DISTINCT ?acc WHERE {
     return fetch_query_result_by_key(sparql_endpoint, query, "acc")
 
 
-def load_groups(sparql_endpoint: str, publisher_uri: str) -> List[str]:
+def load_groups(sparql_endpoint: str, publisher_uri: str) -> list[str]:
     """Load groups for a given publisher ID. CARE: #this is expected at the end!"""
     query = (
         "PREFIX dct: <http://purl.org/dc/terms/>\n"
@@ -146,7 +148,7 @@ def load_groups(sparql_endpoint: str, publisher_uri: str) -> List[str]:
     return fetch_query_result_by_key(sparql_endpoint, query, "group")
 
 
-def load_artifacts(sparql_endpoint: str, group_id: str) -> List[str]:
+def load_artifacts(sparql_endpoint: str, group_id: str) -> list[str]:
     """Load artifacts for a given group ID"""
     query = (
         "PREFIX dct: <http://purl.org/dc/terms/>\n"
@@ -161,7 +163,7 @@ def load_artifacts(sparql_endpoint: str, group_id: str) -> List[str]:
     return fetch_query_result_by_key(sparql_endpoint, query, "artifact")
 
 
-def load_versions(sparql_endpoint: str, artifact_id: str) -> List[str]:
+def load_versions(sparql_endpoint: str, artifact_id: str) -> list[str]:
     """Load versions for a given artifact ID"""
     query = (
         "PREFIX dct: <http://purl.org/dc/terms/>\n"
@@ -176,7 +178,7 @@ def load_versions(sparql_endpoint: str, artifact_id: str) -> List[str]:
     return fetch_query_result_by_key(sparql_endpoint, query, "version")
 
 
-def load_files(sparql_endpoint: str, version_id: str) -> List[str]:
+def load_files(sparql_endpoint: str, version_id: str) -> list[str]:
     """Load files for a given version ID"""
     query = (
         "PREFIX dct: <http://purl.org/dc/terms/>\n"
@@ -201,14 +203,11 @@ class DatabusFileAutocomplete(StringParameterType):
         depend_on_parameter_values: list[Any],
         context: PluginContext,
     ) -> list[Autocompletion]:
-        return self.__transform_uris_to_autocompletion(
-            self.fetch_results_by_uri(query_terms[0])
-        )
+        return self.__transform_uris_to_autocompletion(self.fetch_results_by_uri(query_terms[0]))
 
     @staticmethod
-    def fetch_results_by_uri(query_str: str) -> List[str]:
-        """
-        Fetches results for autocompletion for Databus File Identifiers
+    def fetch_results_by_uri(query_str: str) -> list[str]:
+        """Fetches results for autocompletion for Databus File Identifiers
         and returns a list of URIs
         """
         # pylint: disable=too-many-return-statements
@@ -242,8 +241,8 @@ class DatabusFileAutocomplete(StringParameterType):
         return [query_str]
 
     @staticmethod
-    def __transform_uris_to_autocompletion(uri_list: List[str]) -> List[Autocompletion]:
-        """transforms a list of URIs into a list of autocompletion"""
+    def __transform_uris_to_autocompletion(uri_list: list[str]) -> list[Autocompletion]:
+        """Transforms a list of URIs into a list of autocompletion"""
         result = [Autocompletion(uri, uri) for uri in uri_list]
         return result
 
@@ -256,7 +255,7 @@ class WebDAVHandler:
         self.api_key = api_key
 
     def check_existence(self, path: str) -> bool:
-        """check if path is available"""
+        """Check if path is available"""
         try:
             resp = requests.head(url=f"{self.dav_base}{path}", timeout=4)
         except requests.RequestException:
@@ -267,8 +266,7 @@ class WebDAVHandler:
     def create_dir(
         self, path: str, session: Optional[requests.Session] = None
     ) -> requests.Response:
-        """create directory"""
-
+        """Create directory"""
         if session is None:
             session = requests.Session()
 
@@ -280,9 +278,8 @@ class WebDAVHandler:
         resp = session.send(req.prepare())
         return resp
 
-    def create_dirs(self, path: str) -> List[requests.Response]:
-        """create directories"""
-
+    def create_dirs(self, path: str) -> list[requests.Response]:
+        """Create directories"""
         dirs = path.split("/")
         responses = []
         current_path = ""
@@ -304,7 +301,7 @@ class WebDAVHandler:
         chunk_size: int,
         create_parent_dirs: bool = False,
     ) -> requests.Response:
-        """upload file + updating report (?)"""
+        """Upload file + updating report (?)"""
         # pylint: disable=too-many-arguments
 
         context_data_generator = byte_iterator_context_update(
@@ -333,8 +330,7 @@ class WebDAVHandler:
     def upload_file(
         self, path: str, data: bytes, create_parent_dirs: bool = False
     ) -> requests.Response:
-        """upload data in bytes to a path, optionally creating parent dirs."""
-
+        """Upload data in bytes to a path, optionally creating parent dirs."""
         if create_parent_dirs:
             dirpath = path.rsplit("/", 1)[0]
             self.create_dirs(dirpath)
@@ -352,10 +348,8 @@ class WebDAVHandler:
 def byte_iterator_context_update(
     data: bytes, context: ExecutionContext, chunksize: int, desc: str
 ) -> Iterator[bytes]:
-    """update Execution report"""
-    for i, chunk in enumerate(
-        [data[i : i + chunksize] for i in range(0, len(data), chunksize)]
-    ):
+    """Update Execution report"""
+    for i, chunk in enumerate([data[i : i + chunksize] for i in range(0, len(data), chunksize)]):
         op_desc = f"{desc} {get_clock(i)}"
         context.report.update(
             ExecutionReport(
@@ -367,32 +361,27 @@ def byte_iterator_context_update(
         yield chunk
 
 
-def fetch_facets_options(
-        databus_base: str,
-        url_parameters: Optional[dict] = None
-):
+def fetch_facets_options(databus_base: str, url_parameters: Optional[dict] = None):
     """Fetch facet options for a given document"""
     encoded_query_str = ""
     if url_parameters:
         encoded_query_str = urlencode(url_parameters)
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
     request_uri = f"{databus_base}/app/utils/facets?{encoded_query_str}"
     json_resp = requests.get(request_uri, headers=headers, timeout=30).json()
 
     result = {
         "version": json_resp["http://purl.org/dc/terms/hasVersion"]["values"],
-        "format":
-            json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"]
+        "format": json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"],
     }
 
     return result
 
 
 def fetch_databus_files(endpoint: str, artifact: str, version: str, file_format: str):
-    """fetch databus file name based of artifact, version and format on a given
-    databus instance"""
+    """Fetch databus file name based of artifact, version and format on a given
+    databus instance
+    """
     query = f"""PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX dcat:   <http://www.w3.org/ns/dcat#>
@@ -422,7 +411,7 @@ SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression
 }}
 GROUP BY ?file ?version ?artifact ?license ?size ?format ?compression ?preview"""
 
-    endpoint = endpoint+"/sparql"
+    endpoint = endpoint + "/sparql"
     sparql_service = SPARQLWrapper(endpoint)
     sparql_service.setQuery(query)
     sparql_service.setReturnFormat(JSON)

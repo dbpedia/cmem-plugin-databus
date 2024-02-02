@@ -1,27 +1,30 @@
 """Deploys a graph to the Databus"""
-import re
 import hashlib
+import http
 import json
+import re
 from collections import OrderedDict
-from datetime import datetime
-from typing import List, Tuple
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from cmem.cmempy.workspace.tasks import get_task
 from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
 from cmem_plugin_base.dataintegration.description import Plugin, PluginParameter
+from cmem_plugin_base.dataintegration.entity import Entities
 from cmem_plugin_base.dataintegration.parameter.choice import ChoiceParameterType
 from cmem_plugin_base.dataintegration.parameter.dataset import DatasetParameterType
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
+from cmem_plugin_base.dataintegration.ports import FixedNumberOfInputs
 from cmem_plugin_base.dataintegration.utils import setup_cmempy_super_user_access
 from databusclient import create_distribution, createDataset, deploy
 
+from cmem_plugin_databus.cmem_wrappers import get_streamed
 from cmem_plugin_databus.utils import (
+    MissingMetadataException,
     WebDAVException,
     WebDAVHandler,
     get_clock,
-    MissingMetadataException,
 )
-from cmem_plugin_databus.cmem_wrappers import get_streamed
 
 NS = "http://dalicc.net/licenselibrary/"
 
@@ -49,8 +52,8 @@ LICENSES = OrderedDict(
 )
 
 
-def validate_dataset_artifact_uri(uri: str):
-    """validate dataset artifact uri"""
+def validate_dataset_artifact_uri(uri: str) -> bool:
+    """Validate dataset artifact uri"""
     pattern = r"^https?://[^/]+/[^/]+/[^/]+/[^/]+/$"
 
     if re.match(pattern, uri):
@@ -61,8 +64,7 @@ def validate_dataset_artifact_uri(uri: str):
 @Plugin(
     label="Publish to a DBpedia Databus",
     description="Deploys a graph to a Databus",
-    documentation="""
-This CMEM task deploys a knowledge graph to the defined Databus Dataset.
+    documentation="""This CMEM task deploys a knowledge graph to the defined Databus Dataset.
 
 The knowledge graph will be deployed as a turtle file to the Databus.
 """,
@@ -111,7 +113,7 @@ The knowledge graph will be deployed as a turtle file to the Databus.
         PluginParameter(
             name="chunk_size",
             label="Chunk Size",
-            description="Chunksize during up/downloading the graph",
+            description="Chunk size during up/downloading the graph",
             default_value=1048576,
             advanced=True,
         ),
@@ -122,7 +124,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         dataset_artifact_uri: str,
         version: str,
@@ -150,21 +152,23 @@ class DatabusDeployPlugin(WorkflowPlugin):
         self.fileformat = "ttl"
         self.source_dataset = source_dataset
         self.chunk_size = chunk_size
+        self._set_ports()
+
+    def _set_ports(self) -> None:
+        """Define input/output ports"""
+        self.input_ports = FixedNumberOfInputs([])
+        self.output_port = None
 
     def __get_identifier_from_artifact(self) -> tuple[str, str, str, str]:
-        databus_base, user, group, artifact = self.dataset_artifact_uri.rstrip(
-            "/ "
-        ).rsplit("/", 3)
+        databus_base, user, group, artifact = self.dataset_artifact_uri.rstrip("/ ").rsplit("/", 3)
         return str(databus_base), str(user), str(group), str(artifact)
 
-    def __fetch_graph_metadata(
-        self, context: ExecutionContext
-    ) -> Tuple[str, str, str, str]:
+    def __fetch_graph_metadata(self, context: ExecutionContext) -> tuple[str, str, str, str]:
         project_id = context.task.project_id()
         task_id = self.source_dataset
         metadata_dict = get_task(project=project_id, task=task_id)
 
-        self.log.info("Fetched " + str(metadata_dict))
+        self.log.info(f"Fetched {metadata_dict!s}")
 
         try:
             uri: str = metadata_dict["data"]["parameters"]["graph"]["value"]
@@ -172,9 +176,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             description: str = metadata_dict["metadata"]["description"]
             abstract: str = _generate_abstract_from_description(description)
         except KeyError as key_err:
-            raise MissingMetadataException(
-                f"CMEM task {task_id}", key_err.args[0]
-            ) from key_err
+            raise MissingMetadataException(f"CMEM task {task_id}", key_err.args[0]) from key_err
 
         for name, text in {"label": title, "description": description}.items():
             if text.strip() == "":
@@ -182,31 +184,24 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
         return str(uri), str(title), str(abstract), str(description)
 
-    def execute(
-        self, inputs=(), context: ExecutionContext = ExecutionContext()
-    ) -> None:
-        # pylint: disable=too-many-locals
-
+    def execute(self, inputs: Sequence[Entities], context: ExecutionContext) -> None:
+        """Execute the workflow plugin on a given collection of entities."""
         # init summary and warnings
-        summary: List[Tuple[str, str]] = []
-        warnings: List[str] = []
+        summary: list[tuple[str, str]] = []
+        warnings: list[str] = []
 
         # handle version during execution, NOT during initialisation
         if self.version is None or self.version.strip(" ") == "":
-            self.version = datetime.now().strftime("%Y.%m.%d")
+            self.version = datetime.now(tz=UTC).strftime("%Y.%m.%d")
             summary.append(("Version automatically set to", self.version))
-            warnings.append(
-                f"Version not hardcoded, automatically set to {self.version}"
-            )
+            warnings.append(f"Version not hardcoded, automatically set to {self.version}")
         context.report.update(
             ExecutionReport(operation_desc=f"Started deploy of version {self.version}")
         )
         setup_cmempy_super_user_access()
         # deploy metadata to databus
         try:
-            graph_uri, title, abstract, description = self.__fetch_graph_metadata(
-                context
-            )
+            graph_uri, title, abstract, description = self.__fetch_graph_metadata(context)
         except MissingMetadataException as mm_exception:
             context.report.update(ExecutionReport(error=str(mm_exception)))
             return
@@ -219,8 +214,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         cv_string = "_".join([f"{k}={v}" for k, v in self.cvs.items()])
 
         file_target_path = (
-            f"{group}/{artifact}/{self.version}/"
-            f"{artifact}_{cv_string}.{self.fileformat}"
+            f"{group}/{artifact}/{self.version}/" f"{artifact}_{cv_string}.{self.fileformat}"
         )
 
         # fetch data
@@ -252,12 +246,10 @@ class DatabusDeployPlugin(WorkflowPlugin):
             create_parent_dirs=True,
             chunk_size=self.chunk_size,
         )
-        if upload_resp.status_code >= 400:
+        if upload_resp.status_code >= http.HTTPStatus.BAD_REQUEST:
             raise WebDAVException(upload_resp)
 
-        context.report.update(
-            ExecutionReport(operation_desc="WebDAV Upload Successful ✓")
-        )
+        context.report.update(ExecutionReport(operation_desc="WebDAV Upload Successful ✓"))
 
         version_id = f"{databus_base}/{user}/{group}/{artifact}/{self.version}"
         file_url = f"{self.webdav_handler.dav_base}{file_target_path}"
@@ -283,9 +275,4 @@ class DatabusDeployPlugin(WorkflowPlugin):
 
 def _generate_abstract_from_description(description: str) -> str:
     first_point = description.find(".")
-    if first_point == -1:
-        first_sentence = description
-    else:
-        first_sentence = description[0 : first_point + 1]
-
-    return first_sentence
+    return description if first_point == -1 else description[0 : first_point + 1]
