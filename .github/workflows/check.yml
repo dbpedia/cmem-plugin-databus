@@ -16,10 +16,11 @@ jobs:
   check:
 
     runs-on: ubuntu-latest
+    concurrency: testing_environment
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Task
         uses: arduino/setup-task@v1
@@ -41,21 +42,13 @@ jobs:
         run: |
           poetry self add "poetry-dynamic-versioning[plugin]"
 
-      - name: bandit
-        run: |
-          task check:bandit
-
-      - name: flake8
-        run: |
-          task check:flake8
-
       - name: mypy
         run: |
           task check:mypy
 
-      - name: pylint
+      - name: ruff
         run: |
-          task check:pylint
+          task check:ruff
 
       - name: pytest
         env:
@@ -69,7 +62,7 @@ jobs:
           task check:safety
 
       - name: Publish Test Report in Action
-        uses: mikepenz/action-junit-report@v3
+        uses: mikepenz/action-junit-report@v4
         if: always()  # always run even if the previous step fails
         with:
           report_paths: dist/junit-*.xml

@@ -12,8 +12,6 @@ dotenv: ['.copier-answers.env', '.env']
 vars:
   PACKAGE: cmem_plugin_$project_slug
   DIST_DIR: dist
-  PWD:
-    sh: pwd
 
 includes:
   custom:
@@ -24,21 +22,25 @@ tasks:
 
   default:
     summary: |
-      Just a list of documented tasks.
+      Just a list of documented tasks
     silent: true
     cmds:
       - task --list
 
   # {{{ preparation tasks
   check:prepare:
+    internal: true
     summary: |
       prepare check targets by creating appropriate directory
     run: once
     cmds:
       - mkdir -p {{.DIST_DIR}}/coverage
 
-  poetry:install:
-    desc: Install dependencies managed by Poetry.
+  poetry:check:
+    internal: true
+    platforms: [darwin, linux]
+    summary: |
+      Check poetry versioning plugin. Currently not under Windows
     run: once
     preconditions:
       - sh: '[[ {{.PDV_VERSION}} > {{.PDV_VERSION_MIN}} ]]'
@@ -48,9 +50,6 @@ tasks:
 
           You can install it with the following command:
           poetry self add "poetry-dynamic-versioning[plugin]"
-    cmds:
-      - poetry check
-      - poetry install
     vars:
       PDV_VERSION_MIN: 0.20
       PDV_VERSION:
@@ -58,23 +57,28 @@ tasks:
             poetry self show --addons poetry-dynamic-versioning --tree
             | head -1 | cut -d " " -f 2 | cut -d "." -f 1-2
 
-  python:format:
-    desc: Format Python files.
+  poetry:install:
+    internal: true
+    desc: Install dependencies managed by Poetry
+    run: once
+    deps:
+      - poetry:check
+    cmds:
+      - poetry install
+
+  format:fix:
+    desc: Format Python files and fix obvious issues
     <<: *preparation
     cmds:
-      - poetry run black .
+      - poetry run ruff format tests {{.PACKAGE}}
+      - poetry run ruff check tests {{.PACKAGE}} --fix-only
 
-  poetry:update:
-    desc: Update dependencies managed by Poetry to their newest versions.
-    run: once
+  format:fix-unsafe:
+    desc: Format Python files and fix 'unsafe' issues
+    <<: *preparation
     cmds:
-      - poetry update
-
-  poetry:shell:
-    desc: Open a poetry shell.
-    interactive: true
-    cmds:
-      - poetry shell
+      - poetry run ruff format tests {{.PACKAGE}}
+      - poetry run ruff check tests {{.PACKAGE}} --fix-only --unsafe-fixes
 
   clean:
     desc: Removes dist, *.pyc and some caches
@@ -86,22 +90,40 @@ tasks:
   # {{{ check tasks
 
   check:
-    desc: Run whole test suite.
-    deps:
-      - check:bandit
-      - check:flake8
-      - check:mypy
-      - check:pylint
-      - check:pytest
-      - check:safety
+    desc: Run whole test suite incl. unit and integration tests
+    cmds:
+      - task: check:linters
+      - task: check:pytest
+
+  check:linters:
+    desc: Run all linter and static code analysis tests
+    cmds:
+      - task: check:ruff
+      - task: check:mypy
+      - task: check:safety
 
   check:pytest:
-    desc: Run pytest suite.
+    desc: Run unit and integration tests
+    platforms: [darwin, linux, windows]
     <<: *preparation
     cmds:
-      - poetry run pytest --memray --junitxml={{.JUNIT_FILE}} --cov-report term  --cov-report xml:{{.COVERAGE_FILE}} --cov-report html:{{.COVERAGE_DIR}} --cov={{.PACKAGE}}
-      - poetry run genbadge coverage -l -i {{.COVERAGE_FILE}} -o {{.BADGE_COVERAGE}}
-      - poetry run genbadge tests -l -i {{.JUNIT_FILE}} -o {{.BADGE_TESTS}}
+      # --memray is not used on windows
+      - platforms: [windows]
+        cmd: >
+          poetry run pytest --junitxml={{.JUNIT_FILE}}
+          --cov-report term  --cov-report xml:{{.COVERAGE_FILE}}
+          --cov-report html:{{.COVERAGE_DIR}} --cov={{.PACKAGE}}
+      - platforms: [darwin, linux]
+        cmd: >
+          poetry run pytest --memray --junitxml={{.JUNIT_FILE}}
+          --cov-report term --cov-report xml:{{.COVERAGE_FILE}}
+          --cov-report html:{{.COVERAGE_DIR}} --cov={{.PACKAGE}}
+      - cmd: >
+          poetry run genbadge coverage -l
+          -i {{.COVERAGE_FILE}} -o {{.BADGE_COVERAGE}}
+      - cmd: >
+          poetry run genbadge tests -l
+          -i {{.JUNIT_FILE}} -o {{.BADGE_TESTS}}
     vars:
       JUNIT_FILE: ./{{.DIST_DIR}}/junit-pytest.xml
       COVERAGE_FILE: ./{{.DIST_DIR}}/coverage.xml
@@ -109,19 +131,8 @@ tasks:
       BADGE_COVERAGE: ./{{.DIST_DIR}}/badge-coverage.svg
       BADGE_TESTS: ./{{.DIST_DIR}}/badge-tests.svg
 
-  check:pylint:
-    desc: Check source code with pylint.
-    <<: *preparation
-    cmds:
-      - poetry run pylint --exit-zero {{.PACKAGE}}
-      - poetry run pylint {{.PACKAGE}} {{.XML_PARAMS}}
-    vars:
-      FORMAT: --output-format=pylint_junit.JUnitReporter
-      JUNIT_FILE: ./{{.DIST_DIR}}/junit-pylint.xml
-      XML_PARAMS: --output={{.JUNIT_FILE}} {{.FORMAT}}
-
   check:mypy:
-    desc: Check source code with mypy.
+    desc: Complain about typing errors
     <<: *preparation
     cmds:
       - poetry run mypy -p tests -p {{.PACKAGE}} --junit-xml {{.JUNIT_FILE}}
@@ -129,33 +140,23 @@ tasks:
       JUNIT_FILE: ./{{.DIST_DIR}}/junit-mypy.xml
 
   check:safety:
-    desc: Check source code with safety.
+    desc: Complain about vulnerabilities in dependencies
     <<: *preparation
     cmds:
-      # ignore 48547 rdflib - json-ld not in use
       # ignore 51358 safety - dev dependency only
-      # ignore 52322 gitpython - dev dependency only
-      # ignore 51457 py - dev dependency only
-      - poetry run safety check -i 48547 -i 51358 -i 52322 -i 51457
+      # ignore 61489 pillow - dev dependency only
+      - poetry run safety check -i 51358 -i 61489
 
-  check:bandit:
-    desc: Check source code with bandit.
+  check:ruff:
+    desc: Complain about everything else
     <<: *preparation
     cmds:
-      - poetry run bandit --exit-zero -r {{.PACKAGE}}
-      - poetry run bandit --format xml -r {{.PACKAGE}} -o {{.JUNIT_FILE}}
+      - poetry run ruff check --exit-zero tests {{.PACKAGE}} {{.XML_PARAMS}}
+      - poetry run ruff check --show-source tests {{.PACKAGE}}
+      - poetry run ruff format --check tests {{.PACKAGE}}
     vars:
-      JUNIT_FILE: ./{{.DIST_DIR}}/junit-bandit.xml
-
-  check:flake8:
-    desc: Check source code with flake8.
-    <<: *preparation
-    cmds:
-      - poetry run flake8 --exit-zero tests {{.PACKAGE}} {{.XML_PARAMS}}
-      - poetry run flake8 --show-source tests {{.PACKAGE}}
-    vars:
-      JUNIT_FILE: ./{{.DIST_DIR}}/junit-flake8.xml
-      XML_PARAMS: --format junit-xml --output-file {{.JUNIT_FILE}}
+      JUNIT_FILE: ./{{.DIST_DIR}}/junit-ruff.xml
+      XML_PARAMS: --output-format junit --output-file {{.JUNIT_FILE}}
 
   # }}}
   # {{{ build and deploy tasks
@@ -163,15 +164,17 @@ tasks:
   deploy:
     desc: Install plugin package in Corporate Memory
     deps:
-      - clean
       - build
     cmds:
       - cmemc admin workspace python install dist/*.tar.gz
       - cmemc admin workspace python list-plugins
 
   build:
-    desc: Build tarball and a wheel package.
+    desc: Build a tarball and a wheel package
     <<: *preparation
+    deps:
+      - clean
+      - poetry:check
     cmds:
       - poetry build
 

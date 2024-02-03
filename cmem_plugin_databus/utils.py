@@ -1,6 +1,8 @@
 """Utils for handling the DBpedia Databus"""
+import http
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Dict, Iterator, List, Optional, Any
+from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -13,8 +15,19 @@ from cmem_plugin_base.dataintegration.types import Autocompletion, StringParamet
 from requests import RequestException
 from SPARQLWrapper import JSON, SPARQLWrapper
 
+USED_PREFIXES = """
+PREFIX databus: <https://dataid.dbpedia.org/databus#>
+PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>
+PREFIX dcat: <http://www.w3.org/ns/dcat#>
+PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX dcv: <https://dataid.dbpedia.org/databus-cv#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+"""
 
-class WebDAVException(Exception):
+
+class WebDAVError(Exception):
     """Generalized exception for WebDAV requests"""
 
     def __init__(self, resp: requests.Response):
@@ -24,7 +37,7 @@ class WebDAVException(Exception):
         )
 
 
-class MissingMetadataException(Exception):
+class MissingMetadataError(Exception):
     """Exception for missing metadata labels from a given Source"""
 
     def __init__(self, source: str, metadata_label: str):
@@ -35,7 +48,7 @@ class MissingMetadataException(Exception):
 
 
 def get_clock(counter: int) -> str:
-    """returns a clock symbol"""
+    """Return a clock symbol"""
     clock = {
         0: "🕛",
         1: "🕐",
@@ -61,8 +74,8 @@ class DatabusSearchResult:
     resource: str
 
 
-def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResult:
-    """creates a DatabusSearchResult from a json_dict"""
+def result_from_json_dict(json_dict: dict[str, list[str]]) -> DatabusSearchResult:
+    """Create a DatabusSearchResult from a json_dict"""
     return DatabusSearchResult(
         json_dict["typeName"][0],
         float(json_dict["score"][0]),
@@ -72,29 +85,19 @@ def result_from_json_dict(json_dict: Dict[str, List[str]]) -> DatabusSearchResul
 
 
 def fetch_api_search_result(
-        databus_base: str,
-        url_parameters: Optional[dict] = None
-) -> List[DatabusSearchResult]:
-    """Fetches Search Results."""
+    databus_base: str, url_parameters: dict | None = None
+) -> list[DatabusSearchResult]:
+    """Fetch Search Results."""
     encoded_query_str = ""
     if url_parameters:
         encoded_query_str = urlencode(url_parameters)
-
     request_uri = f"{databus_base}/api/search?{encoded_query_str}"
-
     json_resp = requests.get(request_uri, timeout=30).json()
-
-    result = []
-
-    for res in json_resp["docs"]:
-        result.append(result_from_json_dict(res))
-
-    return result
+    return [result_from_json_dict(res) for res in json_resp["docs"]]
 
 
-def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> List[str]:
-    """Sends a query to the given endpoint and collects all results
-    of a key in a list"""
+def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> list[str]:
+    """Send a query to the given endpoint and collect all results of a key in a list"""
     sparql_service = SPARQLWrapper(endpoint)
     sparql_service.setQuery(query)
     sparql_service.setReturnFormat(JSON)
@@ -105,90 +108,64 @@ def fetch_query_result_by_key(endpoint: str, query: str, key: str) -> List[str]:
     assert isinstance(query_results, dict)  # nosec
 
     try:
-        results = list(
-            map(
-                lambda binding: str(binding[key]["value"]),
-                query_results["results"]["bindings"],
-            )
-        )
+        results = [str(binding[key]["value"]) for binding in query_results["results"]["bindings"]]
     except KeyError:
         results = []
 
     return results
 
 
-def load_accounts(sparql_endpoint: str) -> List[str]:
+def load_accounts(sparql_endpoint: str) -> list[str]:
     """Load available publishers from the databus.
-    Only accounts, not all publishers defined"""
-    query = """PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
-SELECT DISTINCT ?acc WHERE {
-  ?acc a foaf:PersonalProfileDocument .
-} """
-
+    Only accounts, not all publishers defined
+    """
+    query = f"""{USED_PREFIXES}
+    SELECT DISTINCT ?acc WHERE {{
+        ?acc a foaf:PersonalProfileDocument .
+    }}"""
     return fetch_query_result_by_key(sparql_endpoint, query, "acc")
 
 
-def load_groups(sparql_endpoint: str, publisher_uri: str) -> List[str]:
+def load_groups(sparql_endpoint: str, publisher_uri: str) -> list[str]:
     """Load groups for a given publisher ID. CARE: #this is expected at the end!"""
-    query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "SELECT DISTINCT ?group WHERE {\n"
-        + "?dataset a dataid:Dataset .\n"
-        + f"?dataset dct:publisher <{publisher_uri}> .\n"
-        "?dataset dataid:group ?group .}"
-    )
+    query = f"""{USED_PREFIXES}
+    SELECT DISTINCT ?group WHERE {{
+        ?dataset a dataid:Dataset .
+        ?dataset dct:publisher <{publisher_uri}> .
+        ?dataset dataid:group ?group .
+    }}"""
     return fetch_query_result_by_key(sparql_endpoint, query, "group")
 
 
-def load_artifacts(sparql_endpoint: str, group_id: str) -> List[str]:
+def load_artifacts(sparql_endpoint: str, group_id: str) -> list[str]:
     """Load artifacts for a given group ID"""
-    query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "SELECT DISTINCT ?artifact WHERE {\n"
-        + f"?dataset dataid:group <{group_id}> .\n"
-        + "?dataset dataid:artifact ?artifact .}"
-    )
-
+    query = f"""{USED_PREFIXES}
+    SELECT DISTINCT ?artifact WHERE {{
+        ?dataset dataid:group <{group_id}> .
+        ?dataset dataid:artifact ?artifact .
+    }}"""
     return fetch_query_result_by_key(sparql_endpoint, query, "artifact")
 
 
-def load_versions(sparql_endpoint: str, artifact_id: str) -> List[str]:
+def load_versions(sparql_endpoint: str, artifact_id: str) -> list[str]:
     """Load versions for a given artifact ID"""
-    query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "SELECT DISTINCT ?version WHERE {\n"
-        + f"?dataset dataid:artifact <{artifact_id}> .\n"
-        + "?dataset dataid:version ?version .}"
-    )
-
+    query = f"""{USED_PREFIXES}
+    SELECT DISTINCT ?version WHERE {{
+        ?dataset dataid:artifact <{artifact_id}> .
+        ?dataset dataid:version ?version .
+    }}"""
     return fetch_query_result_by_key(sparql_endpoint, query, "version")
 
 
-def load_files(sparql_endpoint: str, version_id: str) -> List[str]:
+def load_files(sparql_endpoint: str, version_id: str) -> list[str]:
     """Load files for a given version ID"""
-    query = (
-        "PREFIX dct: <http://purl.org/dc/terms/>\n"
-        + "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-        + "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-        + "PREFIX dataid: <http://dataid.dbpedia.org/ns/core#>\n"
-        + "PREFIX dcat: <http://www.w3.org/ns/dcat#>\n"
-        + "SELECT DISTINCT ?file WHERE {\n"
-        + f"?dataset dataid:version <{version_id}> .\n"
-        + "?dataset dcat:distribution ?dist .\n"
-        + "?dist dataid:file ?file. }"
-    )
+    query = f"""{USED_PREFIXES}
+    SELECT DISTINCT ?file WHERE {{
+        ?dataset dataid:version <{version_id}> .
+        ?dataset dcat:distribution ?dist .
+        ?dist dataid:file ?file.
+    }}"""
     return fetch_query_result_by_key(sparql_endpoint, query, "file")
 
 
@@ -198,54 +175,48 @@ class DatabusFileAutocomplete(StringParameterType):
     def autocomplete(
         self,
         query_terms: list[str],
-        depend_on_parameter_values: list[Any],
-        context: PluginContext,
+        depend_on_parameter_values: list[Any],  # noqa: ARG002
+        context: PluginContext,  # noqa: ARG002
     ) -> list[Autocompletion]:
-        return self.__transform_uris_to_autocompletion(
-            self.fetch_results_by_uri(query_terms[0])
-        )
+        """Return results that match provided query terms"""
+        return self.__transform_uris_to_autocompletion(self.fetch_results_by_uri(query_terms[0]))
 
     @staticmethod
-    def fetch_results_by_uri(query_str: str) -> List[str]:
-        """
-        Fetches results for autocompletion for Databus File Identifiers
-        and returns a list of URIs
-        """
-        # pylint: disable=too-many-return-statements
-
+    def fetch_results_by_uri(query_str: str) -> list[str]:
+        """Fetch results for completion for databus file identifiers"""
         query_no_http = query_str.replace("https://", "")
         parts = query_no_http.rstrip("/ ").rsplit("/", 5)
 
         endpoint = "https://" + parts[0] + "/sparql"
 
-        normalized_querystr = query_str[0 : query_str.rfind("/")]
+        normalized_query = query_str[0 : query_str.rfind("/")]
 
+        result: list[str] = []
         try:
             if len(parts) == 1:
                 # when it's only the databus -> fetch possible accounts
-                return load_accounts(endpoint)
-            if len(parts) == 2:
+                result = load_accounts(endpoint)
+            if len(parts) == 2:  # noqa: PLR2004
                 # when it's the account return groups
                 # needs #this appended for publisher id
-                return load_groups(endpoint, normalized_querystr + "#this")
-            if len(parts) == 3:
+                result = load_groups(endpoint, normalized_query + "#this")
+            if len(parts) == 3:  # noqa: PLR2004
                 # when it's a group -> return artifacts
-                return load_artifacts(endpoint, normalized_querystr)
-            if len(parts) == 4:
+                result = load_artifacts(endpoint, normalized_query)
+            if len(parts) == 4:  # noqa: PLR2004
                 # when it's an artifact -> return versions
-                return load_versions(endpoint, normalized_querystr)
-            if len(parts) == 5:
+                result = load_versions(endpoint, normalized_query)
+            if len(parts) == 5:  # noqa: PLR2004
                 # when it's a version -> return files
-                return load_files(endpoint, normalized_querystr)
+                result = load_files(endpoint, normalized_query)
         except RequestException:
             return [query_str]
-        return [query_str]
+        return result
 
     @staticmethod
-    def __transform_uris_to_autocompletion(uri_list: List[str]) -> List[Autocompletion]:
-        """transforms a list of URIs into a list of autocompletion"""
-        result = [Autocompletion(uri, uri) for uri in uri_list]
-        return result
+    def __transform_uris_to_autocompletion(uri_list: list[str]) -> list[Autocompletion]:
+        """Transform a list of URIs into a list of autocompletion"""
+        return [Autocompletion(uri, uri) for uri in uri_list]
 
 
 class WebDAVHandler:
@@ -256,19 +227,16 @@ class WebDAVHandler:
         self.api_key = api_key
 
     def check_existence(self, path: str) -> bool:
-        """check if path is available"""
+        """Check if path is available"""
         try:
             resp = requests.head(url=f"{self.dav_base}{path}", timeout=4)
         except requests.RequestException:
             return False
 
-        return bool(resp.status_code == 405)
+        return bool(resp.status_code == http.HTTPStatus.METHOD_NOT_ALLOWED)
 
-    def create_dir(
-        self, path: str, session: Optional[requests.Session] = None
-    ) -> requests.Response:
-        """create directory"""
-
+    def create_dir(self, path: str, session: requests.Session | None = None) -> requests.Response:
+        """Create directory"""
         if session is None:
             session = requests.Session()
 
@@ -277,12 +245,10 @@ class WebDAVHandler:
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
         )
-        resp = session.send(req.prepare())
-        return resp
+        return session.send(req.prepare())
 
-    def create_dirs(self, path: str) -> List[requests.Response]:
-        """create directories"""
-
+    def create_dirs(self, path: str) -> list[requests.Response]:
+        """Create directories"""
         dirs = path.split("/")
         responses = []
         current_path = ""
@@ -292,11 +258,11 @@ class WebDAVHandler:
                 resp = self.create_dir(current_path)
                 responses.append(resp)
                 if resp.status_code not in [200, 201, 405]:
-                    raise WebDAVException(resp)
+                    raise WebDAVError(resp)
 
         return responses
 
-    def upload_file_with_context(
+    def upload_file_with_context(  # noqa: PLR0913
         self,
         path: str,
         data: bytes,
@@ -304,7 +270,7 @@ class WebDAVHandler:
         chunk_size: int,
         create_parent_dirs: bool = False,
     ) -> requests.Response:
-        """upload file + updating report (?)"""
+        """Upload file + updating report (?)"""
         # pylint: disable=too-many-arguments
 
         context_data_generator = byte_iterator_context_update(
@@ -317,45 +283,37 @@ class WebDAVHandler:
             # when list not empty (=> every dir existed) and last one was an error
             # -> raise exception
             if responses and responses[-1].status_code not in [200, 201, 405]:
-                raise WebDAVException(responses[-1])
+                raise WebDAVError(responses[-1])
 
-        # TODO: check why mypy has a problem with this
-        resp = requests.put(
+        return requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
-            data=context_data_generator,  # type: ignore
+            data=context_data_generator,
             stream=True,
             timeout=3000,
         )
 
-        return resp
-
     def upload_file(
         self, path: str, data: bytes, create_parent_dirs: bool = False
     ) -> requests.Response:
-        """upload data in bytes to a path, optionally creating parent dirs."""
-
+        """Upload data in bytes to a path, optionally creating parent dirs."""
         if create_parent_dirs:
             dirpath = path.rsplit("/", 1)[0]
             self.create_dirs(dirpath)
 
-        resp = requests.put(
+        return requests.put(
             url=f"{self.dav_base}{path}",
             headers={"X-API-KEY": f"{self.api_key}"},
             data=data,
             timeout=3000,
         )
 
-        return resp
-
 
 def byte_iterator_context_update(
     data: bytes, context: ExecutionContext, chunksize: int, desc: str
 ) -> Iterator[bytes]:
-    """update Execution report"""
-    for i, chunk in enumerate(
-        [data[i : i + chunksize] for i in range(0, len(data), chunksize)]
-    ):
+    """Update Execution report"""
+    for i, chunk in enumerate([data[i : i + chunksize] for i in range(0, len(data), chunksize)]):
         op_desc = f"{desc} {get_clock(i)}"
         context.report.update(
             ExecutionReport(
@@ -367,67 +325,51 @@ def byte_iterator_context_update(
         yield chunk
 
 
-def fetch_facets_options(
-        databus_base: str,
-        url_parameters: Optional[dict] = None
-):
+def fetch_facets_options(databus_base: str, url_parameters: dict | None = None) -> dict:
     """Fetch facet options for a given document"""
     encoded_query_str = ""
     if url_parameters:
         encoded_query_str = urlencode(url_parameters)
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
     request_uri = f"{databus_base}/app/utils/facets?{encoded_query_str}"
     json_resp = requests.get(request_uri, headers=headers, timeout=30).json()
 
-    result = {
+    return {
         "version": json_resp["http://purl.org/dc/terms/hasVersion"]["values"],
-        "format":
-            json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"]
+        "format": json_resp["https://dataid.dbpedia.org/databus#formatExtension"]["values"],
     }
 
-    return result
 
-
-def fetch_databus_files(endpoint: str, artifact: str, version: str, file_format: str):
-    """fetch databus file name based of artifact, version and format on a given
-    databus instance"""
-    query = f"""PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX dcat:   <http://www.w3.org/ns/dcat#>
-PREFIX dct:    <http://purl.org/dc/terms/>
-PREFIX dcv: <https://dataid.dbpedia.org/databus-cv#>
-PREFIX databus: <https://dataid.dbpedia.org/databus#>
-SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression
- (GROUP_CONCAT(DISTINCT ?var; SEPARATOR=', ') AS ?variant) ?preview WHERE
-{{
-    GRAPH ?g
-    {{
-        ?dataset databus:artifact <{artifact}> .
-        {{ ?distribution <http://purl.org/dc/terms/hasVersion> '{version}' . }}
-        {{ ?distribution
-         <https://dataid.dbpedia.org/databus#formatExtension> '{file_format}' . }}
-        ?dataset dcat:distribution ?distribution .
-        ?distribution databus:file ?file .
-        ?distribution databus:formatExtension ?format .
-        ?distribution databus:compression ?compression .
-        ?dataset dct:license ?license .
-        ?dataset dct:hasVersion ?version .
-        ?dataset databus:artifact ?artifact .
-        OPTIONAL
-         {{ ?distribution ?p ?var. ?p rdfs:subPropertyOf databus:contentVariant . }}
-        OPTIONAL {{ ?distribution dcat:byteSize ?size . }}
+def fetch_databus_files(endpoint: str, artifact: str, version: str, file_format: str) -> list:
+    """Fetch databus file name based of artifact, version and format on a given databus instance"""
+    query = f"""{USED_PREFIXES}
+    SELECT DISTINCT ?file ?version ?artifact ?license ?size ?format ?compression
+    (GROUP_CONCAT(DISTINCT ?var; SEPARATOR=', ') AS ?variant) ?preview WHERE {{
+        GRAPH ?g {{
+            ?dataset databus:artifact <{artifact}> .
+            {{ ?distribution <http://purl.org/dc/terms/hasVersion> '{version}' . }}
+            {{ ?distribution databus:formatExtension '{file_format}' . }}
+            ?dataset dcat:distribution ?distribution .
+            ?distribution databus:file ?file .
+            ?distribution databus:formatExtension ?format .
+            ?distribution databus:compression ?compression .
+            ?dataset dct:license ?license .
+            ?dataset dct:hasVersion ?version .
+            ?dataset databus:artifact ?artifact .
+            OPTIONAL {{
+                ?distribution ?p ?var.
+                ?p rdfs:subPropertyOf databus:contentVariant .
+            }}
+            OPTIONAL {{ ?distribution dcat:byteSize ?size . }}
+        }}
     }}
-}}
-GROUP BY ?file ?version ?artifact ?license ?size ?format ?compression ?preview"""
+    GROUP BY ?file ?version ?artifact ?license ?size ?format ?compression ?preview"""
 
-    endpoint = endpoint+"/sparql"
+    endpoint = endpoint + "/sparql"
     sparql_service = SPARQLWrapper(endpoint)
     sparql_service.setQuery(query)
     sparql_service.setReturnFormat(JSON)
 
-    query_results = sparql_service.query().convert()
-    # just to make mypy stop complaining
-    assert isinstance(query_results, dict)  # nosec
-    return query_results["results"]["bindings"]  # nosec
+    query_results: dict = sparql_service.query().convert()  # type: ignore[assignment]
+    bindings: list = query_results["results"]["bindings"]
+    return bindings
