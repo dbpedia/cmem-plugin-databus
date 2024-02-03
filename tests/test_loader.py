@@ -1,3 +1,4 @@
+"""Tests for the loader plugin"""
 import io
 from collections.abc import Generator
 from dataclasses import dataclass
@@ -6,6 +7,8 @@ from typing import Any
 import pytest
 from cmem.cmempy.workspace.projects.project import delete_project, make_new_project
 from cmem.cmempy.workspace.projects.resources.resource import create_resource, resource_exist
+from cmem_plugin_base.dataintegration.context import PluginContext
+from cmem_plugin_base.dataintegration.types import ParameterType
 
 from cmem_plugin_databus.loader import (
     DatabusFile,
@@ -14,20 +17,28 @@ from cmem_plugin_databus.loader import (
     ResourceParameterType,
     SimpleDatabusLoadingPlugin,
 )
-
-from .utils import TestExecutionContext, TestPluginContext, needs_cmem
-
-DATABUS_BASE_URL = "https://databus.dbpedia.org"
-DATABUS_DOCUMENT = f"{DATABUS_BASE_URL}/cmempydeveloper/CorporateMemory/Documentation"
-DOCUMENT_VERSION = "23.01"
-DOCUMENT_FORMAT = "md"
-DATABUS_FILE = (
-    f"{DATABUS_BASE_URL}/cmempydeveloper/CorporateMemory/"
-    f"Documentation/{DOCUMENT_VERSION}/Documentation.md"
-)
+from tests.utils import TestExecutionContext, TestPluginContext, needs_cmem
 
 
-def get_autocomplete_values(parameter, query_terms, depend_on_parameter_values, context) -> list:
+@dataclass
+class FixtureDataLoading:
+    """FixtureData Loader Testing"""
+
+    project_name: str = "databus_sample_project"
+    resource_name: str = "sample_test.txt"
+    databus_base_url: str = "https://databus.dbpedia.org"
+    databus_document: str = f"{databus_base_url}/cmempydeveloper/CorporateMemory/Documentation"
+    document_version: str = "23.01"
+    document_format: str = "md"
+    databus_file: str = f"{databus_document}/{document_version}/Documentation.md"
+
+
+def get_autocomplete_values(
+    parameter: ParameterType,
+    query_terms: list[str],
+    depend_on_parameter_values: list[Any],
+    context: PluginContext,
+) -> list:
     """Get autocomplete values"""
     if depend_on_parameter_values is None:
         depend_on_parameter_values = []
@@ -42,42 +53,27 @@ def get_autocomplete_values(parameter, query_terms, depend_on_parameter_values, 
 
 
 @pytest.fixture(name="project")
-def project() -> Generator[str, Any, None]:
+def project() -> Generator[FixtureDataLoading, Any, None]:
     """Provide the DI build project incl. assets."""
-    project_name = "databus_sample_project"
-    make_new_project(project_name)
-    yield project_name
-    delete_project(project_name)
-
-
-@pytest.fixture(name="resource")
-def resource(project: str):
-    """Create json resource"""
-    _resource_name = "sample_test.txt"
+    _ = FixtureDataLoading()
+    make_new_project(_.project_name)
     create_resource(
-        project_name=project,
-        resource_name=_resource_name,
+        project_name=_.project_name,
+        resource_name=_.resource_name,
         file_resource=io.StringIO("SAMPLE CONTENT"),
         replace=True,
     )
-
-    @dataclass
-    class FixtureDate:
-        """fixture dataclass"""
-
-        project_name = project
-        resource_name = _resource_name
-
-    _ = FixtureDate()
-    return _
+    yield _
+    delete_project(_.project_name)
 
 
 @needs_cmem
-def test_databus_load(project: str) -> None:
+def test_databus_load(project: FixtureDataLoading) -> None:
     """Test databus load"""
+    _ = project
     resource_name = "upload_readme.md"
     databus_load = SimpleDatabusLoadingPlugin(
-        databus_base_url=DATABUS_BASE_URL,
+        databus_base_url=_.databus_base_url,
         databus_artifact="",
         artifact_format="",
         artifact_version="",
@@ -85,12 +81,14 @@ def test_databus_load(project: str) -> None:
         "/Documentation/23.02/Documentation.md",
         target_file=resource_name,
     )
-    databus_load.execute(inputs=(), context=TestExecutionContext(project_id=project))
-    assert resource_exist(project_name=project, resource_name=resource_name)
+    databus_load.execute(inputs=(), context=TestExecutionContext(project_id=_.project_name))
+    assert resource_exist(project_name=_.project_name, resource_name=resource_name)
 
 
 @needs_cmem
-def test_databus_search_auto_complete():
+def test_databus_search_auto_complete(project: FixtureDataLoading) -> None:
+    """Test databus search autocompletion"""
+    _ = project
     parameter = DatabusSearch()
     assert "" in get_autocomplete_values(
         parameter, [], depend_on_parameter_values=[], context=TestPluginContext()
@@ -101,7 +99,7 @@ def test_databus_search_auto_complete():
             get_autocomplete_values(
                 parameter,
                 ["NOTFOUND"],
-                depend_on_parameter_values=[DATABUS_BASE_URL],
+                depend_on_parameter_values=[_.databus_base_url],
                 context=TestPluginContext(),
             )
         )
@@ -110,10 +108,11 @@ def test_databus_search_auto_complete():
 
 
 @needs_cmem
-def test_resource_parameter_type_completion(resource):
+def test_resource_parameter_type_completion(project: FixtureDataLoading) -> None:
     """Test resource parameter type completion"""
-    project_name = resource.project_name
-    resource_name = resource.resource_name
+    _ = project
+    project_name = _.project_name
+    resource_name = _.resource_name
     parameter = ResourceParameterType()
     context = TestPluginContext(project_name)
     assert resource_name in get_autocomplete_values(
@@ -134,13 +133,14 @@ def test_resource_parameter_type_completion(resource):
 
 
 @needs_cmem
-def test_facet_search_auto_complete() -> None:
+def test_facet_search_auto_complete(project: FixtureDataLoading) -> None:
     """Test facet search autocompletion"""
+    _ = project
     parameter = FacetSearch(facet_option="format")
-    assert DOCUMENT_FORMAT in get_autocomplete_values(
+    assert _.document_format in get_autocomplete_values(
         parameter,
         [],
-        depend_on_parameter_values=[DATABUS_BASE_URL, DATABUS_DOCUMENT],
+        depend_on_parameter_values=[_.databus_base_url, _.databus_document],
         context=TestPluginContext(),
     )
 
@@ -149,7 +149,7 @@ def test_facet_search_auto_complete() -> None:
             get_autocomplete_values(
                 parameter,
                 ["NOTFOUND"],
-                depend_on_parameter_values=[DATABUS_BASE_URL, DATABUS_DOCUMENT],
+                depend_on_parameter_values=[_.databus_base_url, _.databus_document],
                 context=TestPluginContext(),
             )
         )
@@ -157,16 +157,16 @@ def test_facet_search_auto_complete() -> None:
     )
 
     parameter = FacetSearch(facet_option="version")
-    assert DOCUMENT_VERSION in get_autocomplete_values(
+    assert _.document_version in get_autocomplete_values(
         parameter,
         [],
-        depend_on_parameter_values=[DATABUS_BASE_URL, DATABUS_DOCUMENT],
+        depend_on_parameter_values=[_.databus_base_url, _.databus_document],
         context=TestPluginContext(),
     )
-    assert DOCUMENT_VERSION not in get_autocomplete_values(
+    assert _.document_version not in get_autocomplete_values(
         parameter,
         ["23.02"],
-        depend_on_parameter_values=[DATABUS_BASE_URL, DATABUS_DOCUMENT],
+        depend_on_parameter_values=[_.databus_base_url, _.databus_document],
         context=TestPluginContext(),
     )
     assert (
@@ -174,18 +174,18 @@ def test_facet_search_auto_complete() -> None:
             get_autocomplete_values(
                 parameter,
                 [],
-                depend_on_parameter_values=[DATABUS_BASE_URL, DATABUS_DOCUMENT],
+                depend_on_parameter_values=[_.databus_base_url, _.databus_document],
                 context=TestPluginContext(),
             )
         )
-        == 2
+        == 2  # noqa: PLR2004
     )
     assert (
         len(
             get_autocomplete_values(
                 parameter,
                 ["NOTFOUND"],
-                depend_on_parameter_values=[DATABUS_BASE_URL, DATABUS_DOCUMENT],
+                depend_on_parameter_values=[_.databus_base_url, _.databus_document],
                 context=TestPluginContext(),
             )
         )
@@ -194,17 +194,18 @@ def test_facet_search_auto_complete() -> None:
 
 
 @needs_cmem
-def test_databus_file_auto_complete() -> None:
+def test_databus_file_auto_complete(project: FixtureDataLoading) -> None:
     """Test databus file completion"""
+    _ = project
     parameter = DatabusFile()
-    assert DATABUS_FILE in get_autocomplete_values(
+    assert _.databus_file in get_autocomplete_values(
         parameter,
         [],
         depend_on_parameter_values=[
-            DATABUS_BASE_URL,
-            DATABUS_DOCUMENT,
-            DOCUMENT_FORMAT,
-            DOCUMENT_VERSION,
+            _.databus_base_url,
+            _.databus_document,
+            _.document_format,
+            _.document_version,
         ],
         context=TestPluginContext(),
     )
@@ -214,10 +215,10 @@ def test_databus_file_auto_complete() -> None:
                 parameter,
                 [],
                 depend_on_parameter_values=[
-                    DATABUS_BASE_URL,
-                    DATABUS_DOCUMENT,
-                    DOCUMENT_FORMAT,
-                    DOCUMENT_VERSION,
+                    _.databus_base_url,
+                    _.databus_document,
+                    _.document_format,
+                    _.document_version,
                 ],
                 context=TestPluginContext(),
             )
@@ -230,10 +231,10 @@ def test_databus_file_auto_complete() -> None:
                 parameter,
                 ["ADSLASD"],
                 depend_on_parameter_values=[
-                    DATABUS_BASE_URL,
-                    DATABUS_DOCUMENT,
-                    DOCUMENT_FORMAT,
-                    DOCUMENT_VERSION,
+                    _.databus_base_url,
+                    _.databus_document,
+                    _.document_format,
+                    _.document_version,
                 ],
                 context=TestPluginContext(),
             )
@@ -246,10 +247,10 @@ def test_databus_file_auto_complete() -> None:
                 parameter,
                 [],
                 depend_on_parameter_values=[
-                    DATABUS_BASE_URL,
-                    DATABUS_DOCUMENT,
+                    _.databus_base_url,
+                    _.databus_document,
                     "NOTFOUND",
-                    DOCUMENT_VERSION,
+                    _.document_version,
                 ],
                 context=TestPluginContext(),
             )

@@ -20,8 +20,8 @@ from databusclient import create_distribution, createDataset, deploy
 
 from cmem_plugin_databus.cmem_wrappers import get_streamed
 from cmem_plugin_databus.utils import (
-    MissingMetadataException,
-    WebDAVException,
+    MissingMetadataError,
+    WebDAVError,
     WebDAVHandler,
     get_clock,
 )
@@ -176,15 +176,15 @@ class DatabusDeployPlugin(WorkflowPlugin):
             description: str = metadata_dict["metadata"]["description"]
             abstract: str = _generate_abstract_from_description(description)
         except KeyError as key_err:
-            raise MissingMetadataException(f"CMEM task {task_id}", key_err.args[0]) from key_err
+            raise MissingMetadataError(f"CMEM task {task_id}", key_err.args[0]) from key_err
 
         for name, text in {"label": title, "description": description}.items():
             if text.strip() == "":
-                raise MissingMetadataException(f"CMEM task {task_id}", name)
+                raise MissingMetadataError(f"CMEM task {task_id}", name)
 
         return str(uri), str(title), str(abstract), str(description)
 
-    def execute(self, inputs: Sequence[Entities], context: ExecutionContext) -> None:
+    def execute(self, inputs: Sequence[Entities], context: ExecutionContext) -> None:  # noqa: ARG002
         """Execute the workflow plugin on a given collection of entities."""
         # init summary and warnings
         summary: list[tuple[str, str]] = []
@@ -202,7 +202,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
         # deploy metadata to databus
         try:
             graph_uri, title, abstract, description = self.__fetch_graph_metadata(context)
-        except MissingMetadataException as mm_exception:
+        except MissingMetadataError as mm_exception:
             context.report.update(ExecutionReport(error=str(mm_exception)))
             return
 
@@ -247,7 +247,7 @@ class DatabusDeployPlugin(WorkflowPlugin):
             chunk_size=self.chunk_size,
         )
         if upload_resp.status_code >= http.HTTPStatus.BAD_REQUEST:
-            raise WebDAVException(upload_resp)
+            raise WebDAVError(upload_resp)
 
         context.report.update(ExecutionReport(operation_desc="WebDAV Upload Successful ✓"))
 

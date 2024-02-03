@@ -37,15 +37,16 @@ def post_streamed_bytes(
     uri = cmem_get_graph_uri(endpoint_id, graph) + "&replace=" + str(replace).lower()
     headers = {"Content-Type": content_type}
     # https://2.python-requests.org/en/master/user/advanced/#streaming-uploads
-    return request(uri, method="POST", headers=headers, data=data, stream=True)
+    response: Response = request(uri, method="POST", headers=headers, data=data, stream=True)
+    return response
 
 
 def get_streamed(
-    graph,
-    endpoint_id="default",
-    owl_imports_resolution=False,
-    accept="application/n-triples",
-):
+    graph: str,
+    endpoint_id: str = "default",
+    owl_imports_resolution: bool = False,
+    accept: str = "application/n-triples",
+) -> Response:
     """GET graph (streamed).
 
     same as get
@@ -62,10 +63,11 @@ def get_streamed(
         requests.Response object
 
     """
-    return get(
+    response: Response = get(
         graph,
         endpoint_id=endpoint_id,
         owl_imports_resolution=owl_imports_resolution,
         accept=accept,
         stream=True,
     )
+    return response

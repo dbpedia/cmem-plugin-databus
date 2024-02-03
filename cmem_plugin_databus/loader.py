@@ -312,7 +312,7 @@ class SimpleDatabusLoadingPlugin(WorkflowPlugin):
         self,
         inputs: Sequence[Entities],  # noqa: ARG002
         context: ExecutionContext,
-    ) -> Entities | None:
+    ) -> None:
         """Execute the workflow plugin on a given collection of entities."""
         setup_cmempy_user_access(context.user)
         self.log.info(f"Downloading file from {self.databus_file_id}")
